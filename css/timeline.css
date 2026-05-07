@@ -1,0 +1,553 @@
+/* =========================================================
+   TS Navigator - timeline.css
+   Track Timeline
+   ========================================================= */
+
+/* =========================================================
+   Timeline Root
+   ========================================================= */
+
+#trackTimeline {
+  width: 100%;
+  height: 100%;
+
+  display: flex;
+  flex-direction: column;
+
+  overflow: hidden;
+}
+
+/* =========================================================
+   Timeline Header
+   ========================================================= */
+
+.timeline-header {
+  flex-shrink: 0;
+
+  min-height: 72px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 10px;
+
+  padding: 18px 14px 14px;
+
+  border-bottom: 1px solid var(--color-border);
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.02),
+      transparent
+    );
+}
+
+.timeline-header .section-title {
+  font-size: 16px;
+}
+
+.timeline-add-button {
+  width: 34px;
+  height: 34px;
+
+  flex-shrink: 0;
+
+  border-radius: 12px;
+
+  background: var(--color-surface-2);
+  color: var(--color-text);
+
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.timeline-add-button:hover {
+  background: var(--color-surface-3);
+
+  transform: translateY(-1px);
+}
+
+/* =========================================================
+   Timeline Actions
+   ========================================================= */
+
+.timeline-actions {
+  flex-shrink: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 8px;
+
+  padding: 12px 12px;
+
+  border-bottom: 1px solid var(--color-border);
+}
+
+.timeline-action-button {
+  width: 100%;
+  min-height: 38px;
+
+  border-radius: 13px;
+
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--color-text);
+
+  border: 1px solid rgba(255, 255, 255, 0.04);
+
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.timeline-action-button:hover {
+  background: rgba(255, 255, 255, 0.065);
+}
+
+.timeline-action-button.primary {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(91, 140, 255, 0.2),
+      rgba(124, 77, 255, 0.18)
+    );
+
+  border-color: rgba(91, 140, 255, 0.22);
+
+  color: #c6d6ff;
+
+  box-shadow:
+    0 10px 24px rgba(91, 140, 255, 0.1);
+}
+
+.timeline-action-button.primary:hover {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(91, 140, 255, 0.28),
+      rgba(124, 77, 255, 0.24)
+    );
+}
+
+/* =========================================================
+   Track List
+   ========================================================= */
+
+.timeline-track-list {
+  flex: 1;
+
+  min-height: 0;
+
+  overflow-y: auto;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 10px;
+
+  padding: 12px;
+}
+
+/* =========================================================
+   Empty
+   ========================================================= */
+
+.timeline-empty {
+  flex: 1;
+
+  min-height: 220px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  gap: 8px;
+
+  padding: 18px;
+
+  text-align: center;
+
+  border-radius: 18px;
+
+  background: rgba(255, 255, 255, 0.02);
+
+  border: 1px dashed rgba(255, 255, 255, 0.08);
+}
+
+.timeline-empty p {
+  color: var(--color-text);
+
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.timeline-empty span {
+  color: var(--color-text-soft);
+
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* =========================================================
+   Track Card
+   ========================================================= */
+
+.track-card {
+  position: relative;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 10px;
+
+  padding: 12px;
+
+  border-radius: 18px;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.035),
+      rgba(255, 255, 255, 0.015)
+    );
+
+  border: 1px solid rgba(255, 255, 255, 0.045);
+
+  cursor: pointer;
+
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    transform var(--transition-fast),
+    opacity var(--transition-fast);
+}
+
+.track-card:hover {
+  transform: translateY(-1px);
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.06),
+      rgba(255, 255, 255, 0.025)
+    );
+
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.track-card.selected {
+  border-color: rgba(91, 140, 255, 0.55);
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(91, 140, 255, 0.16),
+      rgba(91, 140, 255, 0.045)
+    );
+
+  box-shadow:
+    0 0 0 1px rgba(91, 140, 255, 0.08),
+    0 12px 28px rgba(91, 140, 255, 0.1);
+}
+
+.track-card.hidden-track {
+  opacity: 0.48;
+}
+
+/* =========================================================
+   Track Card Top
+   ========================================================= */
+
+.track-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+
+  gap: 8px;
+}
+
+.track-card-title-wrap {
+  min-width: 0;
+
+  display: flex;
+  align-items: flex-start;
+
+  gap: 9px;
+}
+
+.track-color-dot {
+  width: 9px;
+  height: 34px;
+
+  flex-shrink: 0;
+
+  border-radius: 999px;
+
+  margin-top: 2px;
+}
+
+.track-index {
+  color: var(--color-text-soft);
+
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+
+  text-transform: uppercase;
+}
+
+.track-name {
+  margin-top: 2px;
+
+  color: var(--color-text);
+
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+
+  word-break: break-word;
+}
+
+.track-delete-button {
+  width: 24px;
+  height: 24px;
+
+  flex-shrink: 0;
+
+  border-radius: 8px;
+
+  background: transparent;
+  color: var(--color-text-soft);
+
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.track-delete-button:hover {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ff9d9d;
+}
+
+/* =========================================================
+   Track Meta
+   ========================================================= */
+
+.track-meta {
+  display: flex;
+  flex-direction: column;
+
+  gap: 5px;
+}
+
+.track-meta span {
+  display: inline-flex;
+  align-items: center;
+
+  width: fit-content;
+  max-width: 100%;
+
+  padding: 4px 8px;
+
+  border-radius: 999px;
+
+  background: rgba(255, 255, 255, 0.045);
+
+  color: var(--color-text-muted);
+
+  font-size: 10px;
+  font-weight: 700;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* =========================================================
+   Track Mini Info
+   ========================================================= */
+
+.track-mini-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 8px;
+
+  color: var(--color-text-soft);
+
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.track-mini-info span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* =========================================================
+   Track Card Actions
+   ========================================================= */
+
+.track-card-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+
+  gap: 6px;
+}
+
+.track-chip {
+  min-height: 28px;
+
+  border-radius: 9px;
+
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--color-text-muted);
+
+  font-size: 10px;
+  font-weight: 800;
+
+  border: 1px solid transparent;
+}
+
+.track-chip:hover {
+  background: rgba(255, 255, 255, 0.07);
+
+  color: var(--color-text);
+}
+
+.track-chip.active {
+  background: rgba(34, 197, 94, 0.12);
+  color: #7be8a0;
+
+  border-color: rgba(34, 197, 94, 0.18);
+}
+
+/* =========================================================
+   Type Accent
+   ========================================================= */
+
+.track-card:has(.track-meta span:first-child) {
+  isolation: isolate;
+}
+
+.track-card::before {
+  content: "";
+
+  position: absolute;
+  inset: 0;
+
+  border-radius: inherit;
+
+  pointer-events: none;
+
+  background:
+    linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.025),
+      transparent 38%
+    );
+
+  opacity: 0.7;
+
+  z-index: -1;
+}
+
+/* =========================================================
+   Scrollbar
+   ========================================================= */
+
+.timeline-track-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.timeline-track-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+
+  border-radius: 999px;
+}
+
+.timeline-track-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+/* =========================================================
+   Inspector Closed 상태 보정
+   ========================================================= */
+
+.track-timeline-column.inspector-closed .timeline-header {
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+.track-timeline-column.inspector-closed .track-card {
+  padding: 10px;
+}
+
+/* =========================================================
+   Responsive
+   ========================================================= */
+
+@media (max-width: 1200px) {
+  .timeline-header {
+    padding: 16px 12px 12px;
+  }
+
+  .timeline-track-list {
+    padding: 10px;
+  }
+
+  .track-card-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  #trackTimeline {
+    min-height: 100%;
+  }
+
+  .timeline-track-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+
+    overflow: visible;
+  }
+
+  .timeline-actions {
+    flex-direction: row;
+  }
+
+  .timeline-action-button {
+    width: auto;
+    flex: 1;
+  }
+
+  .track-card-actions {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .timeline-header {
+    height: auto;
+
+    align-items: flex-start;
+  }
+
+  .timeline-actions {
+    flex-direction: column;
+  }
+
+  .timeline-track-list {
+    grid-template-columns: 1fr;
+  }
+
+  .track-card-actions {
+    grid-template-columns: 1fr;
+  }
+}

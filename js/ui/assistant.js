@@ -1,470 +1,592 @@
-// TS Navigator/js/assistant.js
+/* =========================================================
+   TS Navigator - assistant.js
+   AI Assistant UI / 데이터 기반 분석 가이드 팝업
+   ========================================================= */
 
-const TSNAssistant = {
-  elements: {},
+/* =========================================================
+   Assistant 전체 렌더링
+   ========================================================= */
 
-  init() {
-    this.cacheElements();
-    this.bindEvents();
-    this.renderInitialGuide();
-  },
+function renderAssistant() {
+  const container = document.getElementById("aiAssistantRoot");
 
-  cacheElements() {
-    this.elements.assistantButton = document.getElementById('assistantButton');
-    this.elements.assistantPopup = document.getElementById('assistantPopup');
-    this.elements.closeAssistantButton = document.getElementById('closeAssistantButton');
-    this.elements.assistantBody = document.getElementById('assistantBody');
-    this.elements.assistantInput = document.getElementById('assistantInput');
-    this.elements.assistantAskButton = document.getElementById('assistantAskButton');
-  },
+  if (!container) return;
 
-  bindEvents() {
-    if (this.elements.assistantButton) {
-      this.elements.assistantButton.addEventListener('click', () => {
-        this.togglePopup();
-      });
+  container.innerHTML = `
+    <button 
+      type="button" 
+      class="assistant-floating-button"
+      id="assistantFloatingButton"
+      title="AI Assistant"
+    >
+      AI
+    </button>
+
+    ${
+      TSState.assistant.isOpen
+        ? createAssistantPanelHTML()
+        : ""
     }
+  `;
 
-    if (this.elements.closeAssistantButton) {
-      this.elements.closeAssistantButton.addEventListener('click', () => {
-        this.closePopup();
-      });
-    }
+  bindAssistantEvents();
+}
 
-    if (this.elements.assistantAskButton) {
-      this.elements.assistantAskButton.addEventListener('click', () => {
-        this.answerQuestion();
-      });
-    }
+/* =========================================================
+   Assistant Panel HTML
+   ========================================================= */
 
-    if (this.elements.assistantInput) {
-      this.elements.assistantInput.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-          this.answerQuestion();
-        }
-      });
-    }
+function createAssistantPanelHTML() {
+  return `
+    <section class="assistant-panel">
+      <div class="assistant-header">
+        <div>
+          <p class="section-kicker">AI ASSISTANT</p>
+          <h2>Analysis Guide</h2>
+        </div>
 
-    window.addEventListener('tsn:preprocessed', () => {
-      this.renderInitialGuide();
+        <button 
+          type="button" 
+          class="assistant-close-button"
+          id="assistantCloseButton"
+        >
+          ×
+        </button>
+      </div>
+
+      <div class="assistant-body" id="assistantMessageList">
+        ${createAssistantMessagesHTML()}
+      </div>
+
+      <div class="assistant-quick-actions">
+        <button type="button" data-assistant-action="guide">
+          분석 추천
+        </button>
+        <button type="button" data-assistant-action="data-summary">
+          데이터 요약
+        </button>
+        <button type="button" data-assistant-action="metric-help">
+          평가지표 해석
+        </button>
+      </div>
+
+      <form class="assistant-input-row" id="assistantInputForm">
+        <textarea 
+          id="assistantInput"
+          rows="2"
+          placeholder="분석 결과를 붙여넣거나 질문을 입력하세요."
+        ></textarea>
+
+        <button type="submit">
+          전송
+        </button>
+      </form>
+    </section>
+  `;
+}
+
+/* =========================================================
+   Message HTML
+   ========================================================= */
+
+function createAssistantMessagesHTML() {
+  const messages = TSState.assistant.messages || [];
+
+  if (messages.length === 0) {
+    const intro = createDefaultAssistantMessage();
+
+    return createAssistantMessageHTML({
+      role: "assistant",
+      content: intro,
     });
+  }
 
-    window.addEventListener('tsn:forecast', () => {
-      this.renderInitialGuide();
-    });
-  },
+  return messages.map((message) => createAssistantMessageHTML(message)).join("");
+}
 
-  togglePopup() {
-    if (!this.elements.assistantPopup) {
-      return;
-    }
-
-    this.elements.assistantPopup.classList.toggle('hidden');
-
-    if (!this.elements.assistantPopup.classList.contains('hidden')) {
-      this.renderInitialGuide();
-    }
-  },
-
-  closePopup() {
-    if (!this.elements.assistantPopup) {
-      return;
-    }
-
-    this.elements.assistantPopup.classList.add('hidden');
-  },
-
-  renderInitialGuide() {
-    if (!this.elements.assistantBody) {
-      return;
-    }
-
-    const context = this.getAnalysisContext();
-    const guide = this.makeGuide(context);
-
-    this.elements.assistantBody.innerHTML = guide;
-  },
-
-  answerQuestion() {
-    const question = this.elements.assistantInput.value.trim();
-
-    if (!question) {
-      alert('질문을 입력해주세요.');
-      return;
-    }
-
-    const context = this.getAnalysisContext();
-    const answer = this.makeAnswer(question, context);
-
-    this.appendMessage('user', question);
-    this.appendMessage('assistant', answer);
-
-    this.elements.assistantInput.value = '';
-  },
-
-  appendMessage(role, content) {
-    const message = document.createElement('div');
-
-    message.className = `assistant-message ${role}`;
-
-    const title = role === 'user' ? '질문' : 'AI Assistant';
-
-    message.innerHTML = `
-      <strong>${title}</strong>
-      <p>${this.escapeHtml(content).replace(/\n/g, '<br>')}</p>
-    `;
-
-    this.elements.assistantBody.appendChild(message);
-    this.elements.assistantBody.scrollTop = this.elements.assistantBody.scrollHeight;
-  },
-
-  getAnalysisContext() {
-    const state = window.TSNApp?.state || {};
-
-    const originalSeries = window.TSNCharts?.chartData?.original || [];
-    const preprocessedSeries = window.TSNCharts?.chartData?.preprocessed || [];
-    const forecastSeries = window.TSNCharts?.chartData?.forecast || [];
-
-    const preprocessingReport = this.getJson('tsn_preprocessing_report');
-    const forecastReport = this.getJson('tsn_forecast_report');
-    const metricsResult = this.getJson('tsn_metrics_result');
-
-    const sourceSeries =
-      preprocessedSeries.length > 0
-        ? preprocessedSeries
-        : originalSeries;
-
-    return {
-      fileName: state.rawFileName || '-',
-      selectedColumns: state.selectedColumns || {},
-      preprocessingConfig: state.preprocessingConfig || {},
-      forecastingConfig: state.forecastingConfig || {},
-      originalSeries,
-      preprocessedSeries,
-      forecastSeries,
-      sourceSeries,
-      preprocessingReport,
-      forecastReport,
-      metricsResult,
-      profile: this.profileSeries(sourceSeries),
-    };
-  },
-
-  profileSeries(series) {
-    const values = series
-      .map((point) => Number(point.y))
-      .filter((value) => Number.isFinite(value));
-
-    if (values.length === 0) {
-      return {
-        count: 0,
-        missingRatio: 0,
-        mean: null,
-        min: null,
-        max: null,
-        std: null,
-        trend: 'unknown',
-        volatility: 'unknown',
-        hasNegative: false,
-        hasZero: false,
-      };
-    }
-
-    const mean = this.mean(values);
-    const std = this.standardDeviation(values);
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-
-    const firstMean = this.mean(values.slice(0, Math.max(1, Math.floor(values.length * 0.3))));
-    const lastMean = this.mean(values.slice(Math.max(0, Math.floor(values.length * 0.7))));
-
-    let trend = 'stable';
-
-    if (lastMean > firstMean * 1.05) {
-      trend = 'increasing';
-    }
-
-    if (lastMean < firstMean * 0.95) {
-      trend = 'decreasing';
-    }
-
-    const coefficientOfVariation = mean === 0
-      ? 0
-      : Math.abs(std / mean);
-
-    let volatility = 'low';
-
-    if (coefficientOfVariation > 0.5) {
-      volatility = 'high';
-    } else if (coefficientOfVariation > 0.2) {
-      volatility = 'medium';
-    }
-
-    return {
-      count: values.length,
-      mean,
-      min,
-      max,
-      std,
-      trend,
-      volatility,
-      hasNegative: values.some((value) => value < 0),
-      hasZero: values.some((value) => value === 0),
-    };
-  },
-
-  makeGuide(context) {
-    const profile = context.profile;
-    const rows = [];
-
-    rows.push(`
-      <div class="assistant-guide-card">
-        <h4>현재 데이터 요약</h4>
-        <p>
-          파일명은 <strong>${this.escapeHtml(context.fileName)}</strong>이고,
-          선택된 값 컬럼은 <strong>${this.escapeHtml(context.selectedColumns.valueColumn || '-')}</strong>입니다.
-          현재 분석 기준 데이터는 <strong>${profile.count}</strong>개입니다.
-        </p>
+function createAssistantMessageHTML(message) {
+  return `
+    <div class="assistant-message ${message.role}">
+      <div class="assistant-message-role">
+        ${message.role === "user" ? "User" : "Assistant"}
       </div>
-    `);
+      <pre>${escapeAssistantHTML(message.content)}</pre>
+    </div>
+  `;
+}
 
-    rows.push(`
-      <div class="assistant-guide-card">
-        <h4>전처리 추천</h4>
-        <p>${this.makePreprocessingRecommendation(context)}</p>
-      </div>
-    `);
+function createDefaultAssistantMessage() {
+  return [
+    "CSV 데이터 업로드 후 Track을 선택하면 분석 방법을 추천할 수 있습니다.",
+    "",
+    "가능한 도움:",
+    "- 데이터 구조 확인",
+    "- 결측치/이상치 전처리 추천",
+    "- 분해, 예측 모델 추천",
+    "- MAE, RMSE, MAPE, SMAPE 해석",
+  ].join("\n");
+}
 
-    rows.push(`
-      <div class="assistant-guide-card">
-        <h4>모델 추천</h4>
-        <p>${this.makeModelRecommendation(context)}</p>
-      </div>
-    `);
+/* =========================================================
+   Event 연결
+   ========================================================= */
 
-    rows.push(`
-      <div class="assistant-guide-card">
-        <h4>성능평가 해석</h4>
-        <p>${this.makeMetricRecommendation(context)}</p>
-      </div>
-    `);
+function bindAssistantEvents() {
+  const floatingButton = document.getElementById("assistantFloatingButton");
+  const closeButton = document.getElementById("assistantCloseButton");
+  const inputForm = document.getElementById("assistantInputForm");
+  const panel = document.querySelector(".assistant-panel");
 
-    return rows.join('');
-  },
+  if (floatingButton) {
+    floatingButton.addEventListener("click", handleAssistantToggle);
+  }
 
-  makePreprocessingRecommendation(context) {
-    const profile = context.profile;
-    const report = context.preprocessingReport;
+  if (closeButton) {
+    closeButton.addEventListener("click", handleAssistantClose);
+  }
 
-    if (profile.count === 0) {
-      return '아직 분석 가능한 데이터가 없습니다. CSV 업로드 후 날짜/시간 컬럼과 값 컬럼을 먼저 확인해야 합니다.';
-    }
+  if (inputForm) {
+    inputForm.addEventListener("submit", handleAssistantSubmit);
+  }
 
-    const lines = [];
+  if (panel) {
+    panel.addEventListener("click", handleAssistantQuickAction);
+  }
+}
 
-    if (!report) {
-      lines.push('전처리를 아직 실행하지 않았습니다. 먼저 결측값 처리와 이상치 처리를 적용하는 것이 좋습니다.');
-    } else {
-      lines.push(`현재 전처리 단계는 ${report.steps?.join(', ') || '기록 없음'}입니다.`);
-    }
+/* =========================================================
+   Open / Close
+   ========================================================= */
 
-    if (profile.volatility === 'high') {
-      lines.push('변동성이 큰 데이터이므로 이상치 처리와 이동평균 디노이징을 함께 확인하는 것이 좋습니다.');
-    }
+function handleAssistantToggle() {
+  TSStore.toggleAssistant();
 
-    if (profile.trend === 'increasing') {
-      lines.push('후반부 평균이 초반부보다 높아 증가 추세가 있습니다. 단순 평균 모델보다 추세 반영 모델이 적절합니다.');
-    } else if (profile.trend === 'decreasing') {
-      lines.push('후반부 평균이 초반부보다 낮아 감소 추세가 있습니다. 추세를 반영하는 모델을 우선 비교하는 것이 좋습니다.');
-    } else {
-      lines.push('큰 추세 변화가 약하면 Naive 또는 Moving Average를 기준 모델로 사용해도 됩니다.');
-    }
+  renderAssistant();
+}
 
-    if (profile.hasZero) {
-      lines.push('실제값에 0이 포함되어 MAPE가 불안정할 수 있으므로 MAE, RMSE도 함께 확인해야 합니다.');
-    }
+function handleAssistantClose() {
+  TSStore.closeAssistant();
 
-    return lines.join(' ');
-  },
+  renderAssistant();
+}
 
-  makeModelRecommendation(context) {
-    const profile = context.profile;
-    const config = context.forecastingConfig;
+function openAssistantWithMessage(message) {
+  TSStore.openAssistant();
 
-    if (profile.count < 5) {
-      return '데이터 수가 부족합니다. 최소 5개 이상의 값이 있어야 예측을 안정적으로 실행할 수 있습니다.';
-    }
+  if (message) {
+    TSStore.addAssistantMessage("user", message);
+    TSStore.addAssistantMessage("assistant", generateAssistantResponse(message));
+  }
 
-    if (profile.count < 20) {
-      return '데이터 수가 적기 때문에 복잡한 모델보다 Naive Forecast 또는 Moving Average를 먼저 사용하는 것이 좋습니다.';
-    }
+  renderAssistant();
+  scrollAssistantToBottom();
+}
 
-    if (profile.trend === 'increasing' || profile.trend === 'decreasing') {
-      return '추세가 관찰되므로 Exponential Smoothing 또는 Polynomial Trend 모델을 우선 비교하는 것이 좋습니다. 현재 선택 모델은 ' +
-        `${this.getModelName(config.model)}입니다.`;
-    }
+/* =========================================================
+   Submit
+   ========================================================= */
 
-    if (profile.volatility === 'high') {
-      return '변동성이 크므로 Moving Average로 노이즈를 완화한 뒤, Exponential Smoothing 모델과 비교하는 것이 좋습니다. 현재 선택 모델은 ' +
-        `${this.getModelName(config.model)}입니다.`;
-    }
+function handleAssistantSubmit(event) {
+  event.preventDefault();
 
-    return '추세와 변동성이 크지 않다면 Naive Forecast를 기준 모델로 두고 Moving Average, Exponential Smoothing 순서로 비교하는 것이 좋습니다. 현재 선택 모델은 ' +
-      `${this.getModelName(config.model)}입니다.`;
-  },
+  const input = document.getElementById("assistantInput");
 
-  makeMetricRecommendation(context) {
-    const metrics = context.metricsResult;
+  if (!input) return;
 
-    if (!metrics || metrics.count === 0) {
-      return '아직 평가지표가 계산되지 않았습니다. 예측 실행 후 MAE, MSE, RMSE, MAPE를 계산해 모델이 적절한지 확인하세요.';
-    }
+  const content = input.value.trim();
 
-    const lines = [];
+  if (!content) return;
 
-    lines.push(`검증 데이터 ${metrics.count}개를 기준으로 성능이 계산되었습니다.`);
+  TSStore.addAssistantMessage("user", content);
 
-    if (metrics.mape === null) {
-      lines.push('MAPE는 실제값이 0인 경우 안정적으로 해석하기 어렵습니다.');
-    } else if (metrics.mape < 10) {
-      lines.push(`MAPE가 ${this.format(metrics.mape)}%로 낮아 예측이 비교적 안정적입니다.`);
-    } else if (metrics.mape < 20) {
-      lines.push(`MAPE가 ${this.format(metrics.mape)}%로 보통 수준입니다. 그래프에서 특정 구간의 오차를 확인해야 합니다.`);
-    } else {
-      lines.push(`MAPE가 ${this.format(metrics.mape)}%로 높습니다. 전처리 방식, 학습 비율, 모델 파라미터를 다시 조정하는 것이 좋습니다.`);
-    }
+  const response = generateAssistantResponse(content);
 
-    lines.push(`RMSE는 ${this.format(metrics.rmse)}로 큰 오차에 민감하므로 급격한 변동 구간의 예측 실패를 확인하는 데 사용하면 됩니다.`);
+  TSStore.addAssistantMessage("assistant", response);
 
-    return lines.join(' ');
-  },
+  input.value = "";
 
-  makeAnswer(question, context) {
-    const lowerQuestion = question.toLowerCase();
+  renderAssistant();
+  scrollAssistantToBottom();
+}
 
-    if (
-      lowerQuestion.includes('전처리') ||
-      lowerQuestion.includes('결측') ||
-      lowerQuestion.includes('이상치') ||
-      lowerQuestion.includes('보간')
-    ) {
-      return this.makePreprocessingRecommendation(context);
-    }
+/* =========================================================
+   Quick Action
+   ========================================================= */
 
-    if (
-      lowerQuestion.includes('모델') ||
-      lowerQuestion.includes('예측') ||
-      lowerQuestion.includes('arima') ||
-      lowerQuestion.includes('평활') ||
-      lowerQuestion.includes('moving') ||
-      lowerQuestion.includes('naive')
-    ) {
-      return this.makeModelRecommendation(context);
-    }
+function handleAssistantQuickAction(event) {
+  const button = event.target.closest("[data-assistant-action]");
 
-    if (
-      lowerQuestion.includes('성능') ||
-      lowerQuestion.includes('평가') ||
-      lowerQuestion.includes('mae') ||
-      lowerQuestion.includes('mape') ||
-      lowerQuestion.includes('rmse') ||
-      lowerQuestion.includes('mse')
-    ) {
-      return this.makeMetricRecommendation(context);
-    }
+  if (!button) return;
 
-    if (
-      lowerQuestion.includes('복사') ||
-      lowerQuestion.includes('보고서') ||
-      lowerQuestion.includes('제출')
-    ) {
-      return '왼쪽 메뉴의 [분석 및 검정]에서 [결과 복사]를 누르면 현재 파일명, 컬럼, 전처리 단계, 예측 모델, 평가지표, 해석 문장을 한 번에 복사할 수 있습니다.';
-    }
+  const action = button.dataset.assistantAction;
 
+  let userMessage = "";
+
+  switch (action) {
+    case "guide":
+      userMessage = createAnalysisGuideQuestion();
+      break;
+
+    case "data-summary":
+      userMessage = createDataSummaryQuestion();
+      break;
+
+    case "metric-help":
+      userMessage = createMetricHelpQuestion();
+      break;
+
+    default:
+      return;
+  }
+
+  TSStore.addAssistantMessage("user", userMessage);
+  TSStore.addAssistantMessage("assistant", generateAssistantResponse(userMessage));
+
+  renderAssistant();
+  scrollAssistantToBottom();
+}
+
+/* =========================================================
+   Rule-based Assistant Response
+   실제 API 없이 브라우저 내부에서 동작하는 가이드
+   ========================================================= */
+
+function generateAssistantResponse(userMessage = "") {
+  const lower = userMessage.toLowerCase();
+
+  if (
+    lower.includes("평가지표") ||
+    lower.includes("metric") ||
+    lower.includes("mae") ||
+    lower.includes("rmse") ||
+    lower.includes("mape") ||
+    lower.includes("smape")
+  ) {
+    return generateMetricGuideResponse();
+  }
+
+  if (
+    lower.includes("데이터 요약") ||
+    lower.includes("summary") ||
+    lower.includes("구조") ||
+    lower.includes("datetime") ||
+    lower.includes("target")
+  ) {
+    return generateDataSummaryResponse();
+  }
+
+  if (
+    lower.includes("전처리") ||
+    lower.includes("결측") ||
+    lower.includes("이상치") ||
+    lower.includes("preprocessing")
+  ) {
+    return generatePreprocessingGuideResponse();
+  }
+
+  if (
+    lower.includes("예측") ||
+    lower.includes("forecast") ||
+    lower.includes("모델") ||
+    lower.includes("arima") ||
+    lower.includes("holt")
+  ) {
+    return generateForecastGuideResponse();
+  }
+
+  return generateGeneralAnalysisGuideResponse();
+}
+
+/* =========================================================
+   데이터 요약 응답
+   ========================================================= */
+
+function generateDataSummaryResponse() {
+  const uploaded = TSState.uploadedData;
+  const selectedTrack = TSStore.getSelectedTrack();
+
+  const lines = [];
+
+  lines.push("현재 데이터 구조 요약입니다.");
+  lines.push("");
+
+  if (uploaded.fileName) {
+    lines.push(`파일명: ${uploaded.fileName}`);
+  }
+
+  lines.push(`행 개수: ${uploaded.summary?.rowCount ?? uploaded.rows?.length ?? 0}`);
+  lines.push(`열 개수: ${uploaded.summary?.columnCount ?? uploaded.columns?.length ?? 0}`);
+  lines.push(`Datetime Column: ${uploaded.datetimeColumn || "-"}`);
+  lines.push(`Target Column: ${uploaded.targetColumn || "-"}`);
+  lines.push(`Frequency: ${uploaded.frequency || "-"}`);
+  lines.push(`결측치 수: ${uploaded.summary?.missingCount ?? "-"}`);
+  lines.push(`중복 Timestamp 수: ${uploaded.summary?.duplicateTimestampCount ?? "-"}`);
+
+  if (selectedTrack) {
+    const values = selectedTrack.y || [];
+    const validValues = TSMathUtils.cleanNumberArray(values);
+
+    lines.push("");
+    lines.push("선택 Track 요약:");
+    lines.push(`Track: ${selectedTrack.name}`);
+    lines.push(`Type: ${selectedTrack.type}`);
+    lines.push(`Points: ${values.length}`);
+    lines.push(`Mean: ${TSMathUtils.formatNumber(TSMathUtils.mean(validValues), 4)}`);
+    lines.push(`Min: ${TSMathUtils.formatNumber(TSMathUtils.min(validValues), 4)}`);
+    lines.push(`Max: ${TSMathUtils.formatNumber(TSMathUtils.max(validValues), 4)}`);
+    lines.push(`Std: ${TSMathUtils.formatNumber(TSMathUtils.standardDeviation(validValues, false), 4)}`);
+  }
+
+  lines.push("");
+  lines.push("권장 순서:");
+  lines.push("1. datetime/target column 확인");
+  lines.push("2. 결측치와 중복 timestamp 확인");
+  lines.push("3. 이상치 처리");
+  lines.push("4. 필요 시 분해 또는 잡음 완화");
+  lines.push("5. 예측 모델 적용 후 평가지표 확인");
+
+  return lines.join("\n");
+}
+
+/* =========================================================
+   전처리 가이드 응답
+   ========================================================= */
+
+function generatePreprocessingGuideResponse() {
+  const track = TSStore.getSelectedTrack();
+
+  if (!track) {
     return [
-      '현재 데이터 기준으로는 다음 순서로 진행하는 것이 좋습니다.',
-      '',
-      '1. 날짜/시간 컬럼과 값 컬럼이 올바르게 선택되었는지 확인합니다.',
-      '2. 결측값이 있으면 선형 보간 또는 이전값 대체를 적용합니다.',
-      '3. 변동성이 크면 IQR 기반 이상치 처리와 이동평균 디노이징을 비교합니다.',
-      '4. 추세가 있으면 Exponential Smoothing 또는 Polynomial Trend를 우선 사용합니다.',
-      '5. 예측 후 MAE, RMSE, MAPE를 함께 확인합니다.',
-      '',
-      this.makeModelRecommendation(context),
-    ].join('\n');
-  },
+      "전처리 추천을 위해 먼저 Track을 선택해야 합니다.",
+      "",
+      "일반적인 전처리 순서:",
+      "1. timestamp 정렬",
+      "2. missing timestamp 생성",
+      "3. 결측치 처리",
+      "4. 이상치 탐지 및 처리",
+      "5. 필요할 경우 정규화",
+    ].join("\n");
+  }
 
-  getModelName(model) {
-    const names = {
-      naive: 'Naive Forecast',
-      movingAverage: 'Moving Average',
-      exponentialSmoothing: 'Exponential Smoothing',
-      polynomialTrend: 'Polynomial Trend',
-      arima: 'ARIMA 간이 모델',
-    };
+  const values = track.y || [];
+  const missingCount = values.filter((value) => value === null || value === undefined).length;
+  const outlierCount = TSMathUtils.detectOutliersIQR(values, 1.5).filter(Boolean).length;
 
-    return names[model] || model || '-';
-  },
+  const lines = [];
 
-  getJson(key) {
-    const saved = localStorage.getItem(key);
+  lines.push(`"${track.name}" Track 전처리 추천입니다.`);
+  lines.push("");
 
-    if (!saved) {
-      return null;
-    }
+  if (missingCount > 0) {
+    lines.push(`결측치가 ${missingCount}개 있습니다.`);
+    lines.push("추천: Linear Interpolation 또는 LOCF");
+    lines.push("- 연속적인 수요/관측값이면 Linear Interpolation");
+    lines.push("- 직전 상태 유지 의미가 강하면 LOCF");
+  } else {
+    lines.push("결측치는 현재 Track 기준으로 크게 보이지 않습니다.");
+  }
 
-    try {
-      return JSON.parse(saved);
-    } catch (error) {
-      return null;
-    }
-  },
+  lines.push("");
 
-  mean(values) {
-    if (!values || values.length === 0) {
-      return 0;
-    }
+  if (outlierCount > 0) {
+    lines.push(`IQR 기준 이상치가 ${outlierCount}개 탐지됩니다.`);
+    lines.push("추천: 이상치를 null로 바꾼 뒤 선형보간 또는 winsorize");
+  } else {
+    lines.push("IQR 기준 뚜렷한 이상치는 많지 않습니다.");
+  }
 
-    return values.reduce((sum, value) => sum + value, 0) / values.length;
-  },
+  lines.push("");
+  lines.push("실행 위치:");
+  lines.push("Track Inspector → 전처리 설정 → 적용 및 Track 생성");
 
-  standardDeviation(values) {
-    if (!values || values.length === 0) {
-      return 0;
-    }
+  return lines.join("\n");
+}
 
-    const mean = this.mean(values);
-    const variance = this.mean(
-      values.map((value) => {
-        return (value - mean) ** 2;
-      })
-    );
+/* =========================================================
+   예측 가이드 응답
+   ========================================================= */
 
-    return Math.sqrt(variance);
-  },
+function generateForecastGuideResponse() {
+  const track = TSStore.getSelectedTrack();
 
-  format(value, digits = 4) {
-    const number = Number(value);
+  if (!track) {
+    return [
+      "예측 모델 추천을 위해 먼저 Track을 선택해야 합니다.",
+      "",
+      "일반적인 기준:",
+      "- 데이터가 짧으면 Naive",
+      "- 추세가 약하면 SMA 또는 ES",
+      "- 추세가 있으면 Holt",
+      "- 정상성/차분 개념을 설명할 수 있으면 ARIMA 간이 적용",
+    ].join("\n");
+  }
 
-    if (!Number.isFinite(number)) {
-      return '-';
-    }
+  const values = TSMathUtils.cleanNumberArray(track.y || []);
+  const frequency = track.metadata?.frequency || TSState.uploadedData.frequency || "daily";
+  const recommendation = TSForecasting.recommendForecastMethod(values, frequency);
 
-    return number.toFixed(digits);
-  },
+  return [
+    `"${track.name}" Track 예측 추천입니다.`,
+    "",
+    `추천 모델: ${TSForecasting.getForecastMethodName(recommendation.method)}`,
+    `예측 기간: ${recommendation.horizon}`,
+    `학습 비율: ${recommendation.trainRatio}`,
+    "",
+    `추천 이유: ${recommendation.reason}`,
+    "",
+    "실행 위치:",
+    "Track Inspector → 예측 모델 → 적용 및 Track 생성",
+    "",
+    "예측 후에는 Evaluation Result Track에서 MAE, RMSE, MAPE, SMAPE를 함께 확인하세요.",
+  ].join("\n");
+}
 
-  escapeHtml(value) {
-    return String(value)
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;')
-      .replaceAll('"', '&quot;')
-      .replaceAll("'", '&#039;');
-  },
+/* =========================================================
+   평가지표 가이드 응답
+   ========================================================= */
+
+function generateMetricGuideResponse() {
+  const metricTrack = [...TSState.tracks]
+    .reverse()
+    .find((track) => track.type === "Evaluation Result");
+
+  const lines = [];
+
+  lines.push("평가지표 해석 기준입니다.");
+  lines.push("");
+  lines.push("MAE: 실제값과 예측값 차이의 절댓값 평균입니다. 작을수록 좋습니다.");
+  lines.push("MSE: 오차를 제곱한 평균입니다. 큰 오차에 민감합니다.");
+  lines.push("RMSE: MSE에 제곱근을 씌운 값입니다. 원래 데이터 단위와 비슷하게 해석할 수 있습니다.");
+  lines.push("MAPE: 실제값 대비 오차율입니다. 실제값이 0 근방이면 불안정합니다.");
+  lines.push("SMAPE: 실제값과 예측값을 함께 기준으로 보는 비율 오차입니다.");
+  lines.push("");
+
+  if (metricTrack) {
+    lines.push("최근 Evaluation Result:");
+    metricTrack.data.forEach((row) => {
+      lines.push(
+        `${row.metric}: ${TSMathUtils.formatNumber(row.value, 4)} (${row.quality})`
+      );
+    });
+  } else {
+    lines.push("아직 Evaluation Result Track이 없습니다.");
+    lines.push("예측 모델을 실행하면 자동으로 평가지표 Track이 생성됩니다.");
+  }
+
+  return lines.join("\n");
+}
+
+/* =========================================================
+   일반 분석 가이드 응답
+   ========================================================= */
+
+function generateGeneralAnalysisGuideResponse() {
+  const selectedTrack = TSStore.getSelectedTrack();
+
+  if (!selectedTrack) {
+    return [
+      "분석을 시작하려면 CSV 업로드 후 생성된 Original Data Track을 선택하세요.",
+      "",
+      "추천 흐름:",
+      "1. 데이터 구조 확인",
+      "2. 전처리 Track 생성",
+      "3. 필요 시 분해 또는 잡음 완화 Track 생성",
+      "4. 예측 Track 생성",
+      "5. Evaluation Result Track으로 성능 확인",
+    ].join("\n");
+  }
+
+  return [
+    `"${selectedTrack.name}" Track 기준 추천 흐름입니다.`,
+    "",
+    "1. 결측치/이상치가 있으면 전처리 설정을 먼저 적용합니다.",
+    "2. 추세와 계절성을 보고 싶으면 분해를 실행합니다.",
+    "3. 단기 변동이 심하면 잡음 완화를 적용합니다.",
+    "4. 예측 모델은 자동 추천 또는 Holt/ES/SMA 중 선택합니다.",
+    "5. 예측 후 MAE, RMSE, MAPE, SMAPE를 확인합니다.",
+    "",
+    "빠르게 전체 과정을 실행하려면 Timeline 또는 Inspector의 자동분석 버튼을 누르면 됩니다.",
+  ].join("\n");
+}
+
+/* =========================================================
+   Quick Action 질문 생성
+   ========================================================= */
+
+function createAnalysisGuideQuestion() {
+  const track = TSStore.getSelectedTrack();
+
+  if (!track) {
+    return "현재 데이터 기준으로 분석 순서를 추천해줘.";
+  }
+
+  return `"${track.name}" Track 기준으로 전처리, 분해, 예측, 평가지표 확인 순서를 추천해줘.`;
+}
+
+function createDataSummaryQuestion() {
+  return "현재 업로드된 데이터 구조를 요약해줘.";
+}
+
+function createMetricHelpQuestion() {
+  return "MAE, MSE, RMSE, MAPE, SMAPE 평가지표를 해석해줘.";
+}
+
+/* =========================================================
+   Scroll
+   ========================================================= */
+
+function scrollAssistantToBottom() {
+  const list = document.getElementById("assistantMessageList");
+
+  if (!list) return;
+
+  list.scrollTop = list.scrollHeight;
+}
+
+/* =========================================================
+   HTML Escape
+   ========================================================= */
+
+function escapeAssistantHTML(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+/* =========================================================
+   전역 노출
+   ========================================================= */
+
+window.TSAssistantUI = {
+  renderAssistant,
+
+  createAssistantPanelHTML,
+  createAssistantMessagesHTML,
+  createAssistantMessageHTML,
+  createDefaultAssistantMessage,
+
+  bindAssistantEvents,
+
+  handleAssistantToggle,
+  handleAssistantClose,
+  openAssistantWithMessage,
+
+  handleAssistantSubmit,
+  handleAssistantQuickAction,
+
+  generateAssistantResponse,
+  generateDataSummaryResponse,
+  generatePreprocessingGuideResponse,
+  generateForecastGuideResponse,
+  generateMetricGuideResponse,
+  generateGeneralAnalysisGuideResponse,
+
+  createAnalysisGuideQuestion,
+  createDataSummaryQuestion,
+  createMetricHelpQuestion,
+
+  scrollAssistantToBottom,
 };
-
-window.TSNAssistant = TSNAssistant;
-
-document.addEventListener('DOMContentLoaded', () => {
-  TSNAssistant.init();
-});

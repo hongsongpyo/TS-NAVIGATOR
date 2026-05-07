@@ -1,347 +1,456 @@
-// TS Navigator/js/metrics.js
+/* =========================================================
+   TS Navigator - metrics.js
+   예측 성능평가: MAE, MSE, RMSE, MAPE, SMAPE
+   ========================================================= */
 
-const TSNMetrics = {
-  elements: {},
+/* =========================================================
+   전체 평가지표 계산
+   ========================================================= */
 
-  result: {
-    mae: null,
-    mse: null,
-    rmse: null,
-    mape: null,
-    count: 0,
-    note: '',
-  },
+function calculateMetrics(actual = [], predicted = []) {
+  const pairs = createValidPairs(actual, predicted);
 
-  init() {
-    this.cacheElements();
-    this.bindEvents();
-    this.loadSavedMetrics();
-  },
-
-  cacheElements() {
-    this.elements.runMetricsButton = document.getElementById('runMetricsButton');
-    this.elements.copyReportButton = document.getElementById('copyReportButton');
-
-    this.elements.maeValue = document.getElementById('maeValue');
-    this.elements.mseValue = document.getElementById('mseValue');
-    this.elements.rmseValue = document.getElementById('rmseValue');
-    this.elements.mapeValue = document.getElementById('mapeValue');
-    this.elements.analysisNote = document.getElementById('analysisNote');
-  },
-
-  bindEvents() {
-    if (this.elements.runMetricsButton) {
-      this.elements.runMetricsButton.addEventListener('click', () => {
-        this.run();
-      });
-    }
-
-    if (this.elements.copyReportButton) {
-      this.elements.copyReportButton.addEventListener('click', () => {
-        this.copyReport();
-      });
-    }
-
-    window.addEventListener('tsn:forecast', () => {
-      this.run(false);
-    });
-  },
-
-  loadSavedMetrics() {
-    const savedMetrics = localStorage.getItem('tsn_metrics_result');
-
-    if (!savedMetrics) {
-      return;
-    }
-
-    try {
-      this.result = JSON.parse(savedMetrics);
-      this.render();
-    } catch (error) {
-      console.warn('저장된 평가지표를 불러오지 못했습니다.', error);
-    }
-  },
-
-  run(showAlert = true) {
-    const actual = this.getStoredSeries('tsn_test_data');
-    const predicted = this.getStoredSeries('tsn_test_forecast_data');
-
-    if (!actual.length || !predicted.length) {
-      if (showAlert) {
-        alert('먼저 예측을 실행해야 평가지표를 계산할 수 있습니다.');
-      }
-
-      return;
-    }
-
-    const pairs = this.makeValidPairs(actual, predicted);
-
-    if (pairs.length === 0) {
-      if (showAlert) {
-        alert('실제값과 예측값을 비교할 수 없습니다.');
-      }
-
-      return;
-    }
-
-    const errors = pairs.map((pair) => {
-      return pair.actual - pair.predicted;
-    });
-
-    const absoluteErrors = errors.map((error) => {
-      return Math.abs(error);
-    });
-
-    const squaredErrors = errors.map((error) => {
-      return error ** 2;
-    });
-
-    const percentageErrors = pairs
-      .filter((pair) => pair.actual !== 0)
-      .map((pair) => {
-        return Math.abs((pair.actual - pair.predicted) / pair.actual) * 100;
-      });
-
-    const mae = this.mean(absoluteErrors);
-    const mse = this.mean(squaredErrors);
-    const rmse = Math.sqrt(mse);
-    const mape = percentageErrors.length > 0
-      ? this.mean(percentageErrors)
-      : null;
-
-    this.result = {
-      mae,
-      mse,
-      rmse,
-      mape,
-      count: pairs.length,
-      note: this.makeAnalysisNote({
-        mae,
-        mse,
-        rmse,
-        mape,
-        count: pairs.length,
-        zeroActualCount: pairs.length - percentageErrors.length,
-      }),
+  if (pairs.length === 0) {
+    return {
+      mae: null,
+      mse: null,
+      rmse: null,
+      mape: null,
+      smape: null,
+      count: 0,
     };
+  }
 
-    localStorage.setItem('tsn_metrics_result', JSON.stringify(this.result));
+  const actualValues = pairs.map((pair) => pair.actual);
+  const predictedValues = pairs.map((pair) => pair.predicted);
 
-    this.render();
+  return {
+    mae: calculateMAE(actualValues, predictedValues),
+    mse: calculateMSE(actualValues, predictedValues),
+    rmse: calculateRMSE(actualValues, predictedValues),
+    mape: calculateMAPE(actualValues, predictedValues),
+    smape: calculateSMAPE(actualValues, predictedValues),
+    count: pairs.length,
+  };
+}
 
-    if (showAlert) {
-      alert('평가지표 계산이 완료되었습니다.');
-    }
-  },
+/* =========================================================
+   Valid Pair 생성
+   ========================================================= */
 
-  getStoredSeries(key) {
-    const saved = localStorage.getItem(key);
+function createValidPairs(actual = [], predicted = []) {
+  const length = Math.min(actual.length, predicted.length);
+  const pairs = [];
 
-    if (!saved) {
-      return [];
-    }
+  for (let i = 0; i < length; i += 1) {
+    const actualValue = TSMathUtils.toNumber(actual[i]);
+    const predictedValue = TSMathUtils.toNumber(predicted[i]);
 
-    try {
-      const parsed = JSON.parse(saved);
+    if (actualValue === null || predictedValue === null) continue;
 
-      if (!Array.isArray(parsed)) {
-        return [];
-      }
+    pairs.push({
+      index: i,
+      actual: actualValue,
+      predicted: predictedValue,
+      error: actualValue - predictedValue,
+    });
+  }
 
-      return parsed;
-    } catch (error) {
-      console.warn(`${key} 데이터를 불러오지 못했습니다.`, error);
-      return [];
-    }
-  },
+  return pairs;
+}
 
-  makeValidPairs(actualSeries, predictedSeries) {
-    const length = Math.min(actualSeries.length, predictedSeries.length);
-    const pairs = [];
+/* =========================================================
+   MAE
+   ========================================================= */
 
-    for (let i = 0; i < length; i += 1) {
-      const actual = Number(actualSeries[i].y);
-      const predicted = Number(predictedSeries[i].y);
+function calculateMAE(actual = [], predicted = []) {
+  const pairs = createValidPairs(actual, predicted);
 
-      if (!Number.isFinite(actual) || !Number.isFinite(predicted)) {
-        continue;
-      }
+  if (pairs.length === 0) return null;
 
-      pairs.push({
-        x: actualSeries[i].x,
-        actual,
-        predicted,
+  const errors = pairs.map((pair) => Math.abs(pair.error));
+
+  return TSMathUtils.mean(errors);
+}
+
+/* =========================================================
+   MSE
+   ========================================================= */
+
+function calculateMSE(actual = [], predicted = []) {
+  const pairs = createValidPairs(actual, predicted);
+
+  if (pairs.length === 0) return null;
+
+  const errors = pairs.map((pair) => Math.pow(pair.error, 2));
+
+  return TSMathUtils.mean(errors);
+}
+
+/* =========================================================
+   RMSE
+   ========================================================= */
+
+function calculateRMSE(actual = [], predicted = []) {
+  const mse = calculateMSE(actual, predicted);
+
+  if (mse === null) return null;
+
+  return Math.sqrt(mse);
+}
+
+/* =========================================================
+   MAPE
+   실제값이 0인 경우 계산에서 제외
+   ========================================================= */
+
+function calculateMAPE(actual = [], predicted = []) {
+  const pairs = createValidPairs(actual, predicted).filter((pair) => {
+    return pair.actual !== 0;
+  });
+
+  if (pairs.length === 0) return null;
+
+  const errors = pairs.map((pair) => {
+    return Math.abs(pair.error / pair.actual) * 100;
+  });
+
+  return TSMathUtils.mean(errors);
+}
+
+/* =========================================================
+   SMAPE
+   실제값과 예측값이 모두 0인 경우 계산에서 제외
+   ========================================================= */
+
+function calculateSMAPE(actual = [], predicted = []) {
+  const pairs = createValidPairs(actual, predicted).filter((pair) => {
+    return Math.abs(pair.actual) + Math.abs(pair.predicted) !== 0;
+  });
+
+  if (pairs.length === 0) return null;
+
+  const errors = pairs.map((pair) => {
+    const denominator = (Math.abs(pair.actual) + Math.abs(pair.predicted)) / 2;
+
+    return (Math.abs(pair.error) / denominator) * 100;
+  });
+
+  return TSMathUtils.mean(errors);
+}
+
+/* =========================================================
+   잔차 분석
+   ========================================================= */
+
+function calculateResidualSeries(actual = [], predicted = [], dates = []) {
+  const length = Math.min(actual.length, predicted.length);
+
+  const residuals = [];
+
+  for (let i = 0; i < length; i += 1) {
+    const actualValue = TSMathUtils.toNumber(actual[i]);
+    const predictedValue = TSMathUtils.toNumber(predicted[i]);
+
+    if (actualValue === null || predictedValue === null) {
+      residuals.push({
+        date: dates[i] || i,
+        actual: actualValue,
+        predicted: predictedValue,
+        value: null,
       });
+      continue;
     }
 
-    return pairs;
-  },
+    residuals.push({
+      date: dates[i] || i,
+      actual: actualValue,
+      predicted: predictedValue,
+      value: actualValue - predictedValue,
+    });
+  }
 
-  makeAnalysisNote({ mae, rmse, mape, count, zeroActualCount }) {
-    const lines = [];
+  return residuals;
+}
 
-    lines.push(`${count}개의 검증 구간을 기준으로 예측 성능을 계산했습니다.`);
+function summarizeResiduals(residuals = []) {
+  const values = residuals.map((item) => item.value);
 
-    if (mape === null) {
-      lines.push(
-        '실제값이 0인 구간이 많아 MAPE는 안정적으로 계산되지 않았습니다.'
-      );
-    } else if (mape < 10) {
-      lines.push(
-        `MAPE가 ${this.format(mape)}%로 낮아, 실제값 대비 예측 오차가 작은 편입니다.`
-      );
-    } else if (mape < 20) {
-      lines.push(
-        `MAPE가 ${this.format(mape)}%로 보통 수준이며, 추세는 어느 정도 따라가지만 일부 구간의 오차를 확인해야 합니다.`
-      );
-    } else {
-      lines.push(
-        `MAPE가 ${this.format(mape)}%로 큰 편이므로, 전처리 방식이나 예측 모델을 다시 조정하는 것이 좋습니다.`
-      );
-    }
+  return {
+    mean: TSMathUtils.mean(values),
+    median: TSMathUtils.median(values),
+    min: TSMathUtils.min(values),
+    max: TSMathUtils.max(values),
+    standardDeviation: TSMathUtils.standardDeviation(values, false),
+    variance: TSMathUtils.variance(values, false),
+  };
+}
 
-    lines.push(
-      `RMSE는 ${this.format(rmse)}이며, 큰 오차에 더 민감하게 반응하므로 급격한 변동 구간의 예측 실패 여부를 확인하는 데 활용할 수 있습니다.`
-    );
+/* =========================================================
+   Metric 등급 해석
+   ========================================================= */
 
-    if (zeroActualCount > 0) {
-      lines.push(
-        `실제값이 0인 ${zeroActualCount}개 구간은 MAPE 계산에서 제외했습니다.`
-      );
-    }
+function interpretMetrics(metrics = {}) {
+  const interpretations = [];
 
-    return lines.join(' ');
-  },
+  if (metrics.mae !== null && metrics.mae !== undefined) {
+    interpretations.push({
+      metric: "MAE",
+      value: metrics.mae,
+      label: "절대 오차 평균",
+      description:
+        "실제값과 예측값의 차이를 절댓값으로 계산한 평균입니다. 값이 작을수록 좋습니다.",
+    });
+  }
 
-  render() {
-    if (this.elements.maeValue) {
-      this.elements.maeValue.textContent = this.format(this.result.mae);
-    }
+  if (metrics.rmse !== null && metrics.rmse !== undefined) {
+    interpretations.push({
+      metric: "RMSE",
+      value: metrics.rmse,
+      label: "제곱 오차 기반 평균",
+      description:
+        "큰 오차에 더 민감한 지표입니다. 값이 작을수록 좋고, 큰 예측 실패를 확인하는 데 유용합니다.",
+    });
+  }
 
-    if (this.elements.mseValue) {
-      this.elements.mseValue.textContent = this.format(this.result.mse);
-    }
+  if (metrics.mape !== null && metrics.mape !== undefined) {
+    interpretations.push({
+      metric: "MAPE",
+      value: metrics.mape,
+      label: "비율 기반 오차",
+      description:
+        "실제값 대비 예측 오차를 백분율로 나타냅니다. 실제값이 0에 가까우면 불안정할 수 있습니다.",
+    });
+  }
 
-    if (this.elements.rmseValue) {
-      this.elements.rmseValue.textContent = this.format(this.result.rmse);
-    }
+  if (metrics.smape !== null && metrics.smape !== undefined) {
+    interpretations.push({
+      metric: "SMAPE",
+      value: metrics.smape,
+      label: "대칭 비율 오차",
+      description:
+        "실제값과 예측값의 평균 크기를 기준으로 오차율을 계산합니다. MAPE보다 0 근방에서 비교적 안정적입니다.",
+    });
+  }
 
-    if (this.elements.mapeValue) {
-      this.elements.mapeValue.textContent =
-        this.result.mape === null
-          ? '-'
-          : `${this.format(this.result.mape)}%`;
-    }
+  return interpretations;
+}
 
-    if (this.elements.analysisNote) {
-      this.elements.analysisNote.textContent = this.result.note;
-    }
-  },
+function getMetricQualityLabel(metricName, value) {
+  if (value === null || value === undefined) return "계산 불가";
 
-  copyReport() {
-    const report = this.makeCopyText();
+  if (metricName === "MAPE" || metricName === "SMAPE") {
+    if (value < 10) return "매우 좋음";
+    if (value < 20) return "좋음";
+    if (value < 50) return "보통";
+    return "주의 필요";
+  }
 
-    if (!report) {
-      alert('복사할 분석 결과가 없습니다.');
-      return;
-    }
+  return "값이 작을수록 좋음";
+}
 
-    navigator.clipboard
-      .writeText(report)
-      .then(() => {
-        alert('분석 결과가 복사되었습니다.');
-      })
-      .catch(() => {
-        alert('복사에 실패했습니다. 브라우저 권한을 확인해주세요.');
-      });
-  },
+/* =========================================================
+   Forecast 결과에서 Metric 생성
+   ========================================================= */
 
-  makeCopyText() {
-    const fileName = window.TSNApp?.state?.rawFileName || '-';
-    const selectedColumns = window.TSNApp?.state?.selectedColumns || {};
-    const forecastingConfig = window.TSNApp?.state?.forecastingConfig || {};
-    const preprocessingReport = this.getJson('tsn_preprocessing_report');
-    const forecastReport = this.getJson('tsn_forecast_report');
+function createMetricsFromForecastResult(forecastResult) {
+  if (!forecastResult) return null;
 
-    if (!this.result || this.result.count === 0) {
-      return '';
-    }
+  const actual = forecastResult.test?.map((item) => item.value) || [];
+  const predicted = forecastResult.testForecast || [];
+  const dates = forecastResult.test?.map((item) => item.date) || [];
 
-    const preprocessingSteps =
-      preprocessingReport && preprocessingReport.steps
-        ? preprocessingReport.steps.join(', ')
-        : '전처리 미실행 또는 기록 없음';
+  const metrics = calculateMetrics(actual, predicted);
+  const residuals = calculateResidualSeries(actual, predicted, dates);
+  const residualSummary = summarizeResiduals(residuals);
+  const interpretation = interpretMetrics(metrics);
 
-    return [
-      '[TS Navigator 분석 결과]',
-      '',
-      `파일명: ${fileName}`,
-      `날짜/시간 컬럼: ${selectedColumns.dateColumn || '-'}`,
-      `값 컬럼: ${selectedColumns.valueColumn || '-'}`,
-      '',
-      '[전처리]',
-      `적용 단계: ${preprocessingSteps}`,
-      '',
-      '[예측 설정]',
-      `모델: ${forecastReport?.model || forecastingConfig.model || '-'}`,
-      `예측 시평: ${forecastReport?.horizon || forecastingConfig.horizon || '-'}`,
-      `학습 데이터 수: ${forecastReport?.trainCount || '-'}`,
-      `검증 데이터 수: ${forecastReport?.testCount || '-'}`,
-      '',
-      '[평가지표]',
-      `MAE: ${this.format(this.result.mae)}`,
-      `MSE: ${this.format(this.result.mse)}`,
-      `RMSE: ${this.format(this.result.rmse)}`,
-      `MAPE: ${
-        this.result.mape === null
-          ? '-'
-          : `${this.format(this.result.mape)}%`
-      }`,
-      '',
-      '[해석]',
-      this.result.note,
-    ].join('\n');
-  },
+  return {
+    actual,
+    predicted,
+    dates,
+    metrics,
+    residuals,
+    residualSummary,
+    interpretation,
+  };
+}
 
-  getJson(key) {
-    const saved = localStorage.getItem(key);
+/* =========================================================
+   Metric Track 생성
+   ========================================================= */
 
-    if (!saved) {
-      return null;
-    }
+function createMetricTrack({
+  sourceTrackId,
+  forecastResult,
+  regionId = null,
+}) {
+  const sourceTrack = TSStore.getTrackById(sourceTrackId);
 
-    try {
-      return JSON.parse(saved);
-    } catch (error) {
-      return null;
-    }
-  },
+  if (!sourceTrack || !forecastResult) {
+    return null;
+  }
 
-  mean(values) {
-    if (!values || values.length === 0) {
-      return 0;
-    }
+  const metricResult = createMetricsFromForecastResult(forecastResult);
 
-    return values.reduce((sum, value) => sum + value, 0) / values.length;
-  },
+  const process = TSStore.createProcess({
+    name: "Evaluation Metrics",
+    type: "metrics",
+    trackId: sourceTrackId,
+    parameters: {
+      method: forecastResult.method,
+    },
+    status: "completed",
+  });
 
-  format(value, digits = 4) {
-    const number = Number(value);
+  const metricRows = metricsToRows(metricResult.metrics);
 
-    if (!Number.isFinite(number)) {
-      return '-';
-    }
+  const track = TSStore.createTrack({
+    name: "Evaluation Result",
+    type: "Evaluation Result",
+    data: metricRows,
+    x: metricRows.map((item) => item.metric),
+    y: metricRows.map((item) => item.value),
+    color: "#7950f2",
+    regionId: regionId || sourceTrack.regionId,
+    processId: process.id,
+    metadata: {
+      sourceTrackId,
+      processType: "metrics",
+      forecastMethod: forecastResult.method,
+      residuals: metricResult.residuals,
+      residualSummary: metricResult.residualSummary,
+      interpretation: metricResult.interpretation,
+    },
+  });
 
-    return number.toFixed(digits);
-  },
+  TSStore.updateProcess(process.id, {
+    resultTrackId: track.id,
+  });
 
-  getMetricsResult() {
-    return this.result;
-  },
+  return {
+    process,
+    track,
+    result: metricResult,
+  };
+}
+
+function metricsToRows(metrics = {}) {
+  return [
+    {
+      metric: "MAE",
+      value: metrics.mae,
+      description: "평균 절대 오차",
+      quality: getMetricQualityLabel("MAE", metrics.mae),
+    },
+    {
+      metric: "MSE",
+      value: metrics.mse,
+      description: "평균 제곱 오차",
+      quality: getMetricQualityLabel("MSE", metrics.mse),
+    },
+    {
+      metric: "RMSE",
+      value: metrics.rmse,
+      description: "제곱근 평균 제곱 오차",
+      quality: getMetricQualityLabel("RMSE", metrics.rmse),
+    },
+    {
+      metric: "MAPE",
+      value: metrics.mape,
+      description: "평균 절대 백분율 오차",
+      quality: getMetricQualityLabel("MAPE", metrics.mape),
+    },
+    {
+      metric: "SMAPE",
+      value: metrics.smape,
+      description: "대칭 평균 절대 백분율 오차",
+      quality: getMetricQualityLabel("SMAPE", metrics.smape),
+    },
+  ];
+}
+
+/* =========================================================
+   여러 모델 Metric 비교
+   ========================================================= */
+
+function compareMetricResults(results = []) {
+  return results
+    .map((item) => {
+      const metrics = item.metrics || item.result?.metrics || {};
+
+      return {
+        name: item.name || item.method || "Model",
+        method: item.method || item.result?.method || "unknown",
+        mae: metrics.mae,
+        mse: metrics.mse,
+        rmse: metrics.rmse,
+        mape: metrics.mape,
+        smape: metrics.smape,
+      };
+    })
+    .sort((a, b) => {
+      const aValue = a.rmse ?? Number.POSITIVE_INFINITY;
+      const bValue = b.rmse ?? Number.POSITIVE_INFINITY;
+
+      return aValue - bValue;
+    });
+}
+
+function getBestMetricResult(results = [], metric = "rmse") {
+  const validResults = results.filter((item) => {
+    const value = item[metric];
+
+    return value !== null && value !== undefined;
+  });
+
+  if (validResults.length === 0) return null;
+
+  return [...validResults].sort((a, b) => a[metric] - b[metric])[0];
+}
+
+/* =========================================================
+   자동 평가 실행
+   ========================================================= */
+
+function runAutoMetrics({
+  sourceTrackId,
+  forecastResult,
+  regionId = null,
+}) {
+  return createMetricTrack({
+    sourceTrackId,
+    forecastResult,
+    regionId,
+  });
+}
+
+/* =========================================================
+   전역 노출
+   ========================================================= */
+
+window.TSMetrics = {
+  calculateMetrics,
+  createValidPairs,
+
+  calculateMAE,
+  calculateMSE,
+  calculateRMSE,
+  calculateMAPE,
+  calculateSMAPE,
+
+  calculateResidualSeries,
+  summarizeResiduals,
+
+  interpretMetrics,
+  getMetricQualityLabel,
+
+  createMetricsFromForecastResult,
+  createMetricTrack,
+  metricsToRows,
+
+  compareMetricResults,
+  getBestMetricResult,
+
+  runAutoMetrics,
 };
-
-window.TSNMetrics = TSNMetrics;
-
-document.addEventListener('DOMContentLoaded', () => {
-  TSNMetrics.init();
-});

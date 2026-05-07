@@ -1,401 +1,597 @@
-/* TS Navigator/css/home.css */
+/* =========================================================
+   TS Navigator - home.css
+   Home 업로드 화면
+   ========================================================= */
+
+/* =========================================================
+   Home Layout
+   ========================================================= */
 
 .home-page {
   width: 100%;
-  min-height: 100vh;
+  height: 100vh;
 
-  padding: 40px;
+  display: flex;
+  flex-direction: column;
 
-  position: relative;
+  background:
+    radial-gradient(
+      circle at top left,
+      rgba(91, 140, 255, 0.12),
+      transparent 28%
+    ),
+    radial-gradient(
+      circle at bottom right,
+      rgba(132, 94, 247, 0.1),
+      transparent 24%
+    ),
+    var(--color-background);
+
   overflow: hidden;
 }
 
-/* Background Effect */
-
-.home-page::before {
-  content: '';
-
-  position: absolute;
-  top: -200px;
-  left: -200px;
-
-  width: 500px;
-  height: 500px;
-
-  border-radius: 50%;
-
-  background:
-    radial-gradient(
-      circle,
-      rgba(91, 140, 255, 0.18),
-      transparent 70%
-    );
-
-  filter: blur(30px);
-
-  pointer-events: none;
-}
-
-.home-page::after {
-  content: '';
-
-  position: absolute;
-  bottom: -240px;
-  right: -180px;
-
-  width: 600px;
-  height: 600px;
-
-  border-radius: 50%;
-
-  background:
-    radial-gradient(
-      circle,
-      rgba(123, 92, 255, 0.14),
-      transparent 70%
-    );
-
-  filter: blur(40px);
-
-  pointer-events: none;
-}
-
-/* Header */
+/* =========================================================
+   Home Header
+   ========================================================= */
 
 .home-header {
-  width: 100%;
+  height: 76px;
 
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
 
-  margin-bottom: 48px;
+  padding: 0 34px;
 
-  position: relative;
-  z-index: 2;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+
+  background: rgba(12, 14, 20, 0.72);
+
+  backdrop-filter: blur(16px);
 }
 
-.home-title {
-  text-align: right;
+.home-logo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
 }
 
-.home-title h1 {
-  font-size: 34px;
-  font-weight: 700;
-  letter-spacing: -1px;
+.home-logo-mark {
+  width: 42px;
+  height: 42px;
 
-  margin-bottom: 8px;
-}
+  border-radius: 14px;
 
-.home-title p {
-  color: var(--text-muted);
-  font-size: 14px;
-  font-weight: 500;
-}
-
-/* Main Upload Section */
-
-.upload-section {
-  width: 100%;
+  background: linear-gradient(
+    135deg,
+    var(--color-primary),
+    #7c4dff
+  );
 
   display: flex;
-  justify-content: center;
-
-  position: relative;
-  z-index: 2;
-}
-
-.upload-card {
-  width: 100%;
-  max-width: 980px;
-
-  padding: 48px;
-
-  border-radius: var(--radius-xl);
-
-  background:
-    linear-gradient(
-      145deg,
-      rgba(26, 30, 41, 0.92),
-      rgba(16, 18, 26, 0.96)
-    );
-
-  border: 1px solid var(--border-primary);
-
-  backdrop-filter: blur(24px);
-
-  box-shadow: var(--shadow-card);
-}
-
-/* Upload Info */
-
-.upload-info {
-  margin-bottom: 40px;
-}
-
-.upload-info .label {
-  display: inline-flex;
   align-items: center;
   justify-content: center;
 
-  height: 34px;
-
-  padding: 0 14px;
-
-  margin-bottom: 20px;
-
-  border-radius: 999px;
-
-  background:
-    rgba(91, 140, 255, 0.12);
-
-  border:
-    1px solid rgba(91, 140, 255, 0.24);
-
-  color: var(--accent-secondary);
-
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.upload-info h2 {
-  font-size: 42px;
-  line-height: 1.2;
-  letter-spacing: -1.5px;
-
-  margin-bottom: 18px;
-}
-
-.upload-info .description {
-  max-width: 700px;
-
-  color: var(--text-secondary);
-
   font-size: 16px;
-  line-height: 1.8;
+  font-weight: 800;
+
+  color: white;
+
+  box-shadow: 0 10px 24px rgba(91, 140, 255, 0.25);
 }
 
-/* Upload Box */
+.home-logo-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
 
-.upload-box {
-  width: 100%;
-  min-height: 340px;
+.home-logo-text h1 {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.home-logo-text span {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.home-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.home-made-by {
+  color: var(--color-text-soft);
+  font-size: var(--font-size-sm);
+}
+
+/* =========================================================
+   Home Main
+   ========================================================= */
+
+.home-main {
+  flex: 1;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
   padding: 40px;
+}
+
+/* =========================================================
+   Upload Section
+   ========================================================= */
+
+.upload-section {
+  width: 100%;
+  max-width: 760px;
 
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+
+  gap: 28px;
+}
+
+/* =========================================================
+   Upload Hero
+   ========================================================= */
+
+.upload-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  gap: 14px;
 
   text-align: center;
+}
 
-  border-radius: var(--radius-lg);
+.upload-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 
-  border:
-    2px dashed rgba(255, 255, 255, 0.12);
+  min-height: 34px;
+
+  padding: 0 16px;
+
+  border-radius: var(--radius-round);
+
+  background: rgba(91, 140, 255, 0.14);
+
+  color: #a9c0ff;
+
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.upload-hero h2 {
+  font-size: 38px;
+  font-weight: 800;
+
+  line-height: 1.2;
+}
+
+.upload-hero p {
+  max-width: 620px;
+
+  color: var(--color-text-muted);
+
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+/* =========================================================
+   Upload Card
+   ========================================================= */
+
+.upload-card {
+  position: relative;
+
+  width: 100%;
+
+  padding: 48px 42px;
+
+  border-radius: 34px;
 
   background:
     linear-gradient(
       180deg,
-      rgba(255, 255, 255, 0.02),
-      rgba(255, 255, 255, 0.01)
+      rgba(28, 31, 41, 0.96),
+      rgba(20, 23, 31, 0.96)
     );
+
+  border: 1px solid rgba(255, 255, 255, 0.06);
+
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  gap: 28px;
 
   transition:
+    transform var(--transition-normal),
     border-color var(--transition-normal),
-    background var(--transition-normal),
-    transform var(--transition-normal);
+    box-shadow var(--transition-normal);
 }
 
-.upload-box:hover {
-  border-color:
-    rgba(91, 140, 255, 0.5);
+.upload-card:hover {
+  transform: translateY(-2px);
+
+  border-color: rgba(91, 140, 255, 0.28);
+
+  box-shadow:
+    0 24px 70px rgba(0, 0, 0, 0.38),
+    0 0 0 1px rgba(91, 140, 255, 0.08);
+}
+
+.upload-card.drag-over {
+  border-color: rgba(91, 140, 255, 0.48);
 
   background:
     linear-gradient(
       180deg,
-      rgba(91, 140, 255, 0.08),
-      rgba(91, 140, 255, 0.03)
+      rgba(35, 42, 62, 0.98),
+      rgba(21, 25, 35, 0.98)
     );
 
-  transform: translateY(-2px);
+  transform: scale(1.01);
 }
 
-.upload-box.dragover {
-  border-color:
-    rgba(91, 140, 255, 0.8);
-
-  background:
-    rgba(91, 140, 255, 0.12);
-}
-
-/* Upload Icon */
+/* =========================================================
+   Upload Icon
+   ========================================================= */
 
 .upload-icon {
   width: 88px;
   height: 88px;
 
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  margin-bottom: 24px;
-
-  border-radius: 50%;
+  border-radius: 28px;
 
   background:
     linear-gradient(
       135deg,
       rgba(91, 140, 255, 0.18),
-      rgba(123, 92, 255, 0.14)
+      rgba(124, 77, 255, 0.2)
     );
 
-  border:
-    1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 
-  color: var(--accent-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
-  font-size: 44px;
-  font-weight: 300;
+  color: white;
+
+  font-size: 34px;
+
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 14px 32px rgba(91, 140, 255, 0.16);
 }
 
-.upload-box h3 {
-  font-size: 28px;
-  font-weight: 600;
+/* =========================================================
+   Upload Text
+   ========================================================= */
 
-  margin-bottom: 14px;
-}
-
-.upload-box p {
-  margin-bottom: 28px;
-
-  color: var(--text-secondary);
-
-  font-size: 15px;
-}
-
-/* Upload Guide */
-
-.upload-guide {
-  margin-top: 36px;
-
-  padding: 28px;
-
-  border-radius: var(--radius-lg);
-
-  background:
-    rgba(255, 255, 255, 0.03);
-
-  border:
-    1px solid rgba(255, 255, 255, 0.05);
-}
-
-.upload-guide h4 {
-  margin-bottom: 18px;
-
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.upload-guide ul {
+.upload-text {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  align-items: center;
+
+  gap: 10px;
+
+  text-align: center;
 }
 
-.upload-guide li {
+.upload-text h3 {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.upload-text p {
+  max-width: 520px;
+
+  color: var(--color-text-muted);
+
+  line-height: 1.7;
+}
+
+/* =========================================================
+   Upload Actions
+   ========================================================= */
+
+.upload-actions {
+  width: 100%;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 14px;
+
+  flex-wrap: wrap;
+}
+
+.upload-primary-button {
   position: relative;
 
-  padding-left: 18px;
+  min-width: 260px;
+  min-height: 58px;
 
-  color: var(--text-secondary);
+  border-radius: var(--radius-round);
+
+  background: linear-gradient(
+    135deg,
+    var(--color-primary),
+    #7c4dff
+  );
+
+  color: white;
+
   font-size: 15px;
+  font-weight: 700;
+
+  padding: 0 28px;
+
+  box-shadow:
+    0 12px 28px rgba(91, 140, 255, 0.24);
+
+  overflow: hidden;
 }
 
-.upload-guide li::before {
-  content: '';
+.upload-primary-button:hover {
+  transform: translateY(-2px);
 
+  box-shadow:
+    0 18px 36px rgba(91, 140, 255, 0.3);
+}
+
+.upload-primary-button input[type="file"] {
   position: absolute;
-  top: 10px;
-  left: 0;
+  inset: 0;
 
-  width: 7px;
-  height: 7px;
+  opacity: 0;
+
+  cursor: pointer;
+}
+
+.upload-secondary-button {
+  min-width: 160px;
+  min-height: 58px;
+
+  border-radius: var(--radius-round);
+
+  background: rgba(255, 255, 255, 0.05);
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+
+  color: var(--color-text);
+
+  font-size: 14px;
+  font-weight: 600;
+
+  padding: 0 22px;
+}
+
+.upload-secondary-button:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* =========================================================
+   Upload File Info
+   ========================================================= */
+
+.upload-file-info {
+  width: 100%;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 10px;
+}
+
+.selected-file-name {
+  color: var(--color-text-muted);
+
+  font-size: 13px;
+  text-align: center;
+}
+
+.upload-status {
+  width: 100%;
+
+  min-height: 48px;
+
+  border-radius: 16px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0 18px;
+
+  background: rgba(255, 255, 255, 0.03);
+
+  color: var(--color-text-soft);
+
+  font-size: 13px;
+  font-weight: 500;
+
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.upload-status.loading {
+  background: rgba(91, 140, 255, 0.12);
+  color: #a9c0ff;
+}
+
+.upload-status.success {
+  background: rgba(34, 197, 94, 0.12);
+  color: #7be8a0;
+}
+
+.upload-status.error {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ff9d9d;
+}
+
+/* =========================================================
+   Upload Footer
+   ========================================================= */
+
+.upload-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 12px;
+
+  flex-wrap: wrap;
+
+  color: var(--color-text-soft);
+
+  font-size: 12px;
+}
+
+.upload-footer-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.upload-footer-dot {
+  width: 5px;
+  height: 5px;
 
   border-radius: 50%;
 
-  background: var(--accent-primary);
+  background: var(--color-text-soft);
 }
 
-/* Animation */
+/* =========================================================
+   Floating Background Blur
+   ========================================================= */
 
-.upload-card {
-  animation: homeFadeUp 0.5s ease;
+.home-blur {
+  position: absolute;
+
+  border-radius: 50%;
+
+  filter: blur(90px);
+
+  pointer-events: none;
 }
 
-@keyframes homeFadeUp {
-  from {
-    opacity: 0;
-    transform: translateY(18px);
-  }
+.home-blur.left {
+  top: -120px;
+  left: -120px;
 
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  width: 360px;
+  height: 360px;
+
+  background: rgba(91, 140, 255, 0.12);
 }
 
-/* Responsive */
+.home-blur.right {
+  right: -120px;
+  bottom: -120px;
+
+  width: 320px;
+  height: 320px;
+
+  background: rgba(132, 94, 247, 0.1);
+}
+
+/* =========================================================
+   Responsive
+   ========================================================= */
 
 @media (max-width: 1024px) {
-  .upload-card {
-    padding: 36px;
+  .upload-hero h2 {
+    font-size: 32px;
   }
 
-  .upload-info h2 {
-    font-size: 34px;
+  .upload-card {
+    padding: 42px 28px;
   }
 }
 
 @media (max-width: 768px) {
-  .home-page {
-    padding: 20px;
-  }
-
   .home-header {
-    margin-bottom: 32px;
+    padding: 0 18px;
   }
 
-  .home-title h1 {
+  .home-main {
+    padding: 22px;
+  }
+
+  .upload-section {
+    gap: 22px;
+  }
+
+  .upload-hero h2 {
     font-size: 28px;
   }
 
   .upload-card {
-    padding: 24px;
+    border-radius: 28px;
+
+    padding: 36px 22px;
   }
 
-  .upload-info h2 {
-    font-size: 28px;
+  .upload-actions {
+    flex-direction: column;
   }
 
-  .upload-info .description {
-    font-size: 14px;
-  }
-
-  .upload-box {
-    min-height: 280px;
-    padding: 28px;
+  .upload-primary-button,
+  .upload-secondary-button {
+    width: 100%;
   }
 
   .upload-icon {
-    width: 72px;
-    height: 72px;
+    width: 74px;
+    height: 74px;
 
-    font-size: 36px;
+    font-size: 28px;
+  }
+}
+
+@media (max-width: 520px) {
+  .home-header {
+    height: auto;
+
+    padding: 16px;
+
+    flex-direction: column;
+    align-items: flex-start;
+
+    gap: 12px;
   }
 
-  .upload-box h3 {
+  .upload-hero h2 {
     font-size: 24px;
+  }
+
+  .upload-text h3 {
+    font-size: 20px;
+  }
+
+  .upload-text p {
+    font-size: 14px;
+  }
+
+  .upload-card {
+    padding: 28px 18px;
   }
 }

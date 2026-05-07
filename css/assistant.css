@@ -1,0 +1,425 @@
+/* =========================================================
+   TS Navigator - assistant.css
+   AI Assistant 팝업
+   ========================================================= */
+
+/* =========================================================
+   Assistant Root
+   ========================================================= */
+
+#aiAssistantRoot {
+  position: relative;
+
+  z-index: var(--z-assistant);
+}
+
+/* =========================================================
+   Assistant Panel
+   ========================================================= */
+
+.assistant-panel {
+  position: fixed;
+
+  right: 28px;
+  bottom: 104px;
+
+  width: 380px;
+  height: min(620px, calc(100vh - 140px));
+
+  display: flex;
+  flex-direction: column;
+
+  border-radius: 26px;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(29, 33, 44, 0.98),
+      rgba(18, 21, 29, 0.98)
+    );
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+
+  box-shadow:
+    0 24px 70px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+
+  overflow: hidden;
+
+  z-index: var(--z-assistant);
+
+  animation: assistant-in 0.22s ease;
+}
+
+/* =========================================================
+   Assistant Header
+   ========================================================= */
+
+.assistant-header {
+  flex-shrink: 0;
+
+  min-height: 82px;
+
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+
+  gap: 14px;
+
+  padding: 20px 20px 16px;
+
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.035),
+      rgba(255, 255, 255, 0.01)
+    );
+}
+
+.assistant-header h2 {
+  margin-top: 4px;
+
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.assistant-close-button {
+  width: 36px;
+  height: 36px;
+
+  flex-shrink: 0;
+
+  border-radius: 14px;
+
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--color-text-muted);
+
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.assistant-close-button:hover {
+  background: rgba(239, 68, 68, 0.14);
+  color: #ff9d9d;
+}
+
+/* =========================================================
+   Assistant Body
+   ========================================================= */
+
+.assistant-body {
+  flex: 1;
+
+  min-height: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 12px;
+
+  padding: 16px;
+
+  overflow-y: auto;
+}
+
+/* =========================================================
+   Message
+   ========================================================= */
+
+.assistant-message {
+  display: flex;
+  flex-direction: column;
+
+  gap: 6px;
+
+  max-width: 92%;
+}
+
+.assistant-message.user {
+  align-self: flex-end;
+}
+
+.assistant-message.assistant {
+  align-self: flex-start;
+}
+
+.assistant-message-role {
+  color: var(--color-text-soft);
+
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+
+  text-transform: uppercase;
+}
+
+.assistant-message.user .assistant-message-role {
+  text-align: right;
+}
+
+.assistant-message pre {
+  margin: 0;
+
+  white-space: pre-wrap;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+
+  padding: 12px 14px;
+
+  border-radius: 16px;
+
+  font-family: var(--font-family);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.assistant-message.assistant pre {
+  background: rgba(255, 255, 255, 0.045);
+
+  color: var(--color-text);
+
+  border: 1px solid rgba(255, 255, 255, 0.045);
+
+  border-top-left-radius: 6px;
+}
+
+.assistant-message.user pre {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(91, 140, 255, 0.22),
+      rgba(124, 77, 255, 0.18)
+    );
+
+  color: #dbe5ff;
+
+  border: 1px solid rgba(91, 140, 255, 0.18);
+
+  border-top-right-radius: 6px;
+}
+
+/* =========================================================
+   Quick Actions
+   ========================================================= */
+
+.assistant-quick-actions {
+  flex-shrink: 0;
+
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+
+  gap: 8px;
+
+  padding: 12px 16px;
+
+  border-top: 1px solid rgba(255, 255, 255, 0.055);
+
+  background: rgba(10, 12, 18, 0.24);
+}
+
+.assistant-quick-actions button {
+  min-height: 34px;
+
+  border-radius: 12px;
+
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--color-text-muted);
+
+  font-size: 11px;
+  font-weight: 800;
+
+  border: 1px solid rgba(255, 255, 255, 0.045);
+}
+
+.assistant-quick-actions button:hover {
+  background: rgba(91, 140, 255, 0.14);
+  color: #c6d6ff;
+
+  border-color: rgba(91, 140, 255, 0.18);
+}
+
+/* =========================================================
+   Input
+   ========================================================= */
+
+.assistant-input-row {
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: flex-end;
+
+  gap: 10px;
+
+  padding: 14px 16px 16px;
+
+  border-top: 1px solid rgba(255, 255, 255, 0.055);
+
+  background: rgba(10, 12, 18, 0.34);
+}
+
+.assistant-input-row textarea {
+  flex: 1;
+
+  min-height: 48px;
+  max-height: 120px;
+
+  resize: vertical;
+
+  border-radius: 16px;
+
+  font-size: 12px;
+  line-height: 1.6;
+
+  background: rgba(255, 255, 255, 0.045);
+
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.assistant-input-row textarea::placeholder {
+  color: var(--color-text-soft);
+}
+
+.assistant-input-row button {
+  width: 58px;
+  min-height: 48px;
+
+  flex-shrink: 0;
+
+  border-radius: 16px;
+
+  background:
+    linear-gradient(
+      135deg,
+      var(--color-primary),
+      #7c4dff
+    );
+
+  color: white;
+
+  font-size: 12px;
+  font-weight: 800;
+
+  box-shadow:
+    0 10px 22px rgba(91, 140, 255, 0.18);
+}
+
+.assistant-input-row button:hover {
+  transform: translateY(-1px);
+
+  box-shadow:
+    0 14px 28px rgba(91, 140, 255, 0.24);
+}
+
+/* =========================================================
+   Scrollbar
+   ========================================================= */
+
+.assistant-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.assistant-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+
+  border-radius: 999px;
+}
+
+.assistant-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+/* =========================================================
+   Floating Button Override
+   ========================================================= */
+
+.assistant-floating-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  letter-spacing: 0.02em;
+}
+
+.assistant-floating-button::before {
+  content: "";
+
+  position: absolute;
+  inset: -5px;
+
+  border-radius: inherit;
+
+  background: rgba(91, 140, 255, 0.16);
+
+  z-index: -1;
+
+  animation: assistant-pulse 1.8s ease-in-out infinite;
+}
+
+/* =========================================================
+   Animation
+   ========================================================= */
+
+@keyframes assistant-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes assistant-pulse {
+  0% {
+    transform: scale(0.92);
+    opacity: 0.6;
+  }
+
+  70% {
+    transform: scale(1.18);
+    opacity: 0;
+  }
+
+  100% {
+    transform: scale(0.92);
+    opacity: 0;
+  }
+}
+
+/* =========================================================
+   Responsive
+   ========================================================= */
+
+@media (max-width: 640px) {
+  .assistant-panel {
+    right: 12px;
+    bottom: 86px;
+
+    width: calc(100vw - 24px);
+    height: min(620px, calc(100vh - 110px));
+
+    border-radius: 22px;
+  }
+
+  .assistant-header {
+    padding: 18px;
+  }
+
+  .assistant-quick-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .assistant-input-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .assistant-input-row button {
+    width: 100%;
+  }
+}
