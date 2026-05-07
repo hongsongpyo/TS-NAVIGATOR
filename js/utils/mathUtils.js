@@ -1,178 +1,495 @@
 /* =========================================================
    TS Navigator - mathUtils.js
-   수치 계산 / 통계 / 스케일링 / 예측 보조 유틸
-   ========================================================= */
+   ---------------------------------------------------------
+   역할
+   1. 기초 통계 계산
+   2. 결측치 / 이상치 / 스케일 확인
+   3. 이동평균, 지수평활, 차분 등 시계열 수학 처리
+   4. 예측 성능평가지표 계산
+   5. 상관, ACF, PACF 보조 계산
+========================================================= */
 
 /* =========================================================
-   기본 수치 처리
-   ========================================================= */
+   1. 숫자 변환 / 배열 정리
+========================================================= */
 
 function toNumber(value) {
-  if (value === null || value === undefined || value === "") return null;
+  if (value === null || value === undefined || value === "") {
+    return NaN;
+  }
 
-  const number = Number(String(value).replace(/,/g, ""));
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : NaN;
+  }
 
-  if (!Number.isFinite(number)) return null;
+  const cleaned = String(value)
+    .trim()
+    .replace(/,/g, "");
 
-  return number;
+  const number = Number(cleaned);
+  return Number.isFinite(number) ? number : NaN;
 }
 
 function isValidNumber(value) {
-  return toNumber(value) !== null;
+  return Number.isFinite(toNumber(value));
 }
 
-function cleanNumberArray(values = []) {
-  return values.map(toNumber).filter((value) => value !== null);
+function toNumericArray(values) {
+  if (!Array.isArray(values)) return [];
+
+  return values.map(toNumber);
 }
 
-function replaceInvalidWithNull(values = []) {
-  return values.map((value) => toNumber(value));
+function cleanNumericArray(values) {
+  return toNumericArray(values).filter(Number.isFinite);
+}
+
+function getColumnValues(rows, columnName) {
+  if (!Array.isArray(rows) || !columnName) return [];
+
+  return rows.map(row => toNumber(row[columnName]));
+}
+
+function getValidPairs(actual, predicted) {
+  const yTrue = toNumericArray(actual);
+  const yPred = toNumericArray(predicted);
+
+  const pairs = [];
+
+  for (let i = 0; i < Math.min(yTrue.length, yPred.length); i += 1) {
+    if (Number.isFinite(yTrue[i]) && Number.isFinite(yPred[i])) {
+      pairs.push({
+        actual: yTrue[i],
+        predicted: yPred[i],
+        error: yTrue[i] - yPred[i]
+      });
+    }
+  }
+
+  return pairs;
 }
 
 /* =========================================================
-   기초 통계
-   ========================================================= */
+   2. 기초 통계량
+========================================================= */
 
-function sum(values = []) {
-  return cleanNumberArray(values).reduce((total, value) => total + value, 0);
+function sum(values) {
+  return cleanNumericArray(values).reduce((acc, value) => acc + value, 0);
 }
 
-function mean(values = []) {
-  const numbers = cleanNumberArray(values);
+function mean(values) {
+  const clean = cleanNumericArray(values);
+  if (clean.length === 0) return NaN;
 
-  if (numbers.length === 0) return null;
-
-  return sum(numbers) / numbers.length;
+  return sum(clean) / clean.length;
 }
 
-function median(values = []) {
-  const numbers = cleanNumberArray(values).sort((a, b) => a - b);
+function median(values) {
+  const clean = cleanNumericArray(values).sort((a, b) => a - b);
+  if (clean.length === 0) return NaN;
 
-  if (numbers.length === 0) return null;
+  const middle = Math.floor(clean.length / 2);
 
-  const middle = Math.floor(numbers.length / 2);
-
-  if (numbers.length % 2 === 0) {
-    return (numbers[middle - 1] + numbers[middle]) / 2;
+  if (clean.length % 2 === 0) {
+    return (clean[middle - 1] + clean[middle]) / 2;
   }
 
-  return numbers[middle];
+  return clean[middle];
 }
 
-function min(values = []) {
-  const numbers = cleanNumberArray(values);
+function min(values) {
+  const clean = cleanNumericArray(values);
+  if (clean.length === 0) return NaN;
 
-  if (numbers.length === 0) return null;
-
-  return Math.min(...numbers);
+  return Math.min(...clean);
 }
 
-function max(values = []) {
-  const numbers = cleanNumberArray(values);
+function max(values) {
+  const clean = cleanNumericArray(values);
+  if (clean.length === 0) return NaN;
 
-  if (numbers.length === 0) return null;
-
-  return Math.max(...numbers);
+  return Math.max(...clean);
 }
 
-function range(values = []) {
-  const minValue = min(values);
-  const maxValue = max(values);
+function variance(values, sample = true) {
+  const clean = cleanNumericArray(values);
+  if (clean.length <= 1) return NaN;
 
-  if (minValue === null || maxValue === null) return null;
+  const avg = mean(clean);
+  const squaredDiffSum = clean.reduce((acc, value) => {
+    return acc + Math.pow(value - avg, 2);
+  }, 0);
 
-  return maxValue - minValue;
+  return squaredDiffSum / (sample ? clean.length - 1 : clean.length);
 }
 
-function variance(values = [], sample = true) {
-  const numbers = cleanNumberArray(values);
-
-  if (numbers.length === 0) return null;
-  if (sample && numbers.length < 2) return null;
-
-  const avg = mean(numbers);
-  const squaredDiffSum = numbers.reduce(
-    (total, value) => total + Math.pow(value - avg, 2),
-    0
-  );
-
-  return squaredDiffSum / (sample ? numbers.length - 1 : numbers.length);
+function standardDeviation(values, sample = true) {
+  const varValue = variance(values, sample);
+  return Number.isFinite(varValue) ? Math.sqrt(varValue) : NaN;
 }
 
-function standardDeviation(values = [], sample = true) {
-  const value = variance(values, sample);
+function quantile(values, q) {
+  const clean = cleanNumericArray(values).sort((a, b) => a - b);
+  if (clean.length === 0) return NaN;
 
-  if (value === null) return null;
+  if (q <= 0) return clean[0];
+  if (q >= 1) return clean[clean.length - 1];
 
-  return Math.sqrt(value);
-}
+  const position = (clean.length - 1) * q;
+  const lower = Math.floor(position);
+  const upper = Math.ceil(position);
+  const weight = position - lower;
 
-function quantile(values = [], q = 0.5) {
-  const numbers = cleanNumberArray(values).sort((a, b) => a - b);
-
-  if (numbers.length === 0) return null;
-
-  const position = (numbers.length - 1) * q;
-  const base = Math.floor(position);
-  const rest = position - base;
-
-  if (numbers[base + 1] !== undefined) {
-    return numbers[base] + rest * (numbers[base + 1] - numbers[base]);
+  if (lower === upper) {
+    return clean[lower];
   }
 
-  return numbers[base];
+  return clean[lower] * (1 - weight) + clean[upper] * weight;
 }
 
-function iqr(values = []) {
-  const q1 = quantile(values, 0.25);
-  const q3 = quantile(values, 0.75);
+function iqr(values) {
+  return quantile(values, 0.75) - quantile(values, 0.25);
+}
 
-  if (q1 === null || q3 === null) return null;
+function range(values) {
+  return max(values) - min(values);
+}
 
-  return q3 - q1;
+function describe(values) {
+  const clean = cleanNumericArray(values);
+
+  return {
+    count: clean.length,
+    missingCount: Array.isArray(values) ? values.length - clean.length : 0,
+    mean: mean(clean),
+    median: median(clean),
+    min: min(clean),
+    max: max(clean),
+    variance: variance(clean),
+    std: standardDeviation(clean),
+    q1: quantile(clean, 0.25),
+    q3: quantile(clean, 0.75),
+    iqr: iqr(clean),
+    range: range(clean)
+  };
 }
 
 /* =========================================================
-   이동 통계
-   ========================================================= */
+   3. 결측치 확인
+========================================================= */
 
-function movingAverage(values = [], windowSize = 3) {
-  const numbers = replaceInvalidWithNull(values);
+function countMissing(values) {
+  if (!Array.isArray(values)) return 0;
 
-  return numbers.map((_, index) => {
-    const start = Math.max(0, index - windowSize + 1);
-    const window = numbers.slice(start, index + 1).filter((value) => value !== null);
+  return values.filter(value => {
+    return !Number.isFinite(toNumber(value));
+  }).length;
+}
 
-    if (window.length === 0) return null;
+function missingRatio(values) {
+  if (!Array.isArray(values) || values.length === 0) return 0;
 
-    return mean(window);
+  return countMissing(values) / values.length;
+}
+
+function hasMissing(values) {
+  return countMissing(values) > 0;
+}
+
+/* =========================================================
+   4. 이상치 탐지
+========================================================= */
+
+function zScores(values) {
+  const nums = toNumericArray(values);
+  const avg = mean(nums);
+  const std = standardDeviation(nums);
+
+  if (!Number.isFinite(std) || std === 0) {
+    return nums.map(() => 0);
+  }
+
+  return nums.map(value => {
+    if (!Number.isFinite(value)) return NaN;
+    return (value - avg) / std;
   });
 }
 
-function centeredMovingAverage(values = [], windowSize = 3) {
-  const numbers = replaceInvalidWithNull(values);
-  const half = Math.floor(windowSize / 2);
+function detectOutliersZScore(values, threshold = 3) {
+  const scores = zScores(values);
 
-  return numbers.map((_, index) => {
-    const start = Math.max(0, index - half);
-    const end = Math.min(numbers.length, index + half + 1);
-    const window = numbers.slice(start, end).filter((value) => value !== null);
+  return scores
+    .map((score, index) => ({
+      index,
+      value: toNumber(values[index]),
+      score,
+      isOutlier: Number.isFinite(score) && Math.abs(score) > threshold
+    }))
+    .filter(item => item.isOutlier);
+}
 
-    if (window.length === 0) return null;
+function detectOutliersIQR(values, multiplier = 1.5) {
+  const nums = toNumericArray(values);
+  const q1 = quantile(nums, 0.25);
+  const q3 = quantile(nums, 0.75);
+  const iqrValue = q3 - q1;
 
-    return mean(window);
+  const lower = q1 - multiplier * iqrValue;
+  const upper = q3 + multiplier * iqrValue;
+
+  return nums
+    .map((value, index) => ({
+      index,
+      value,
+      lower,
+      upper,
+      isOutlier: Number.isFinite(value) && (value < lower || value > upper)
+    }))
+    .filter(item => item.isOutlier);
+}
+
+function detectOutliersHampel(values, windowSize = 7, threshold = 3) {
+  const nums = toNumericArray(values);
+  const halfWindow = Math.floor(windowSize / 2);
+  const result = [];
+
+  for (let i = 0; i < nums.length; i += 1) {
+    const start = Math.max(0, i - halfWindow);
+    const end = Math.min(nums.length, i + halfWindow + 1);
+    const windowValues = nums.slice(start, end).filter(Number.isFinite);
+
+    if (windowValues.length < 3 || !Number.isFinite(nums[i])) continue;
+
+    const med = median(windowValues);
+    const absDeviations = windowValues.map(value => Math.abs(value - med));
+    const mad = median(absDeviations);
+
+    if (!Number.isFinite(mad) || mad === 0) continue;
+
+    const score = Math.abs(nums[i] - med) / (1.4826 * mad);
+
+    if (score > threshold) {
+      result.push({
+        index: i,
+        value: nums[i],
+        median: med,
+        mad,
+        score,
+        isOutlier: true
+      });
+    }
+  }
+
+  return result;
+}
+
+/* =========================================================
+   5. 보간 / 결측 대체
+========================================================= */
+
+function fillForward(values) {
+  const nums = toNumericArray(values);
+  const result = [];
+
+  let lastValue = NaN;
+
+  nums.forEach(value => {
+    if (Number.isFinite(value)) {
+      lastValue = value;
+      result.push(value);
+    } else {
+      result.push(lastValue);
+    }
+  });
+
+  return result;
+}
+
+function fillBackward(values) {
+  const nums = toNumericArray(values);
+  const result = [...nums];
+
+  let nextValue = NaN;
+
+  for (let i = nums.length - 1; i >= 0; i -= 1) {
+    if (Number.isFinite(nums[i])) {
+      nextValue = nums[i];
+      result[i] = nums[i];
+    } else {
+      result[i] = nextValue;
+    }
+  }
+
+  return result;
+}
+
+function fillMean(values) {
+  const nums = toNumericArray(values);
+  const avg = mean(nums);
+
+  return nums.map(value => Number.isFinite(value) ? value : avg);
+}
+
+function linearInterpolate(values) {
+  const nums = toNumericArray(values);
+  const result = [...nums];
+
+  for (let i = 0; i < result.length; i += 1) {
+    if (Number.isFinite(result[i])) continue;
+
+    let prevIndex = i - 1;
+    let nextIndex = i + 1;
+
+    while (prevIndex >= 0 && !Number.isFinite(result[prevIndex])) {
+      prevIndex -= 1;
+    }
+
+    while (nextIndex < result.length && !Number.isFinite(result[nextIndex])) {
+      nextIndex += 1;
+    }
+
+    if (prevIndex >= 0 && nextIndex < result.length) {
+      const prevValue = result[prevIndex];
+      const nextValue = result[nextIndex];
+      const ratio = (i - prevIndex) / (nextIndex - prevIndex);
+      result[i] = prevValue + ratio * (nextValue - prevValue);
+    } else if (prevIndex >= 0) {
+      result[i] = result[prevIndex];
+    } else if (nextIndex < result.length) {
+      result[i] = result[nextIndex];
+    }
+  }
+
+  return result;
+}
+
+/* =========================================================
+   6. 시계열 변환
+========================================================= */
+
+function difference(values, order = 1) {
+  let result = toNumericArray(values);
+
+  for (let step = 0; step < order; step += 1) {
+    const diffed = [];
+
+    for (let i = 1; i < result.length; i += 1) {
+      if (Number.isFinite(result[i]) && Number.isFinite(result[i - 1])) {
+        diffed.push(result[i] - result[i - 1]);
+      } else {
+        diffed.push(NaN);
+      }
+    }
+
+    result = diffed;
+  }
+
+  return result;
+}
+
+function seasonalDifference(values, period = 12) {
+  const nums = toNumericArray(values);
+  const result = [];
+
+  for (let i = period; i < nums.length; i += 1) {
+    if (Number.isFinite(nums[i]) && Number.isFinite(nums[i - period])) {
+      result.push(nums[i] - nums[i - period]);
+    } else {
+      result.push(NaN);
+    }
+  }
+
+  return result;
+}
+
+function logTransform(values) {
+  return toNumericArray(values).map(value => {
+    if (!Number.isFinite(value) || value <= 0) return NaN;
+    return Math.log(value);
   });
 }
 
-function exponentialMovingAverage(values = [], alpha = 0.3) {
-  const numbers = replaceInvalidWithNull(values);
+function inverseLogTransform(values) {
+  return toNumericArray(values).map(value => {
+    if (!Number.isFinite(value)) return NaN;
+    return Math.exp(value);
+  });
+}
+
+function normalizeMinMax(values) {
+  const nums = toNumericArray(values);
+  const minValue = min(nums);
+  const maxValue = max(nums);
+  const denominator = maxValue - minValue;
+
+  if (!Number.isFinite(denominator) || denominator === 0) {
+    return nums.map(() => 0);
+  }
+
+  return nums.map(value => {
+    if (!Number.isFinite(value)) return NaN;
+    return (value - minValue) / denominator;
+  });
+}
+
+function standardize(values) {
+  const nums = toNumericArray(values);
+  const avg = mean(nums);
+  const std = standardDeviation(nums);
+
+  if (!Number.isFinite(std) || std === 0) {
+    return nums.map(() => 0);
+  }
+
+  return nums.map(value => {
+    if (!Number.isFinite(value)) return NaN;
+    return (value - avg) / std;
+  });
+}
+
+/* =========================================================
+   7. 이동평균 / 지수평활
+========================================================= */
+
+function movingAverage(values, windowSize = 3) {
+  const nums = toNumericArray(values);
+  const result = [];
+
+  for (let i = 0; i < nums.length; i += 1) {
+    const start = Math.max(0, i - windowSize + 1);
+    const windowValues = nums.slice(start, i + 1).filter(Number.isFinite);
+
+    result.push(windowValues.length > 0 ? mean(windowValues) : NaN);
+  }
+
+  return result;
+}
+
+function centeredMovingAverage(values, windowSize = 3) {
+  const nums = toNumericArray(values);
+  const result = [];
+  const halfWindow = Math.floor(windowSize / 2);
+
+  for (let i = 0; i < nums.length; i += 1) {
+    const start = Math.max(0, i - halfWindow);
+    const end = Math.min(nums.length, i + halfWindow + 1);
+    const windowValues = nums.slice(start, end).filter(Number.isFinite);
+
+    result.push(windowValues.length > 0 ? mean(windowValues) : NaN);
+  }
+
+  return result;
+}
+
+function exponentialMovingAverage(values, alpha = 0.3) {
+  const nums = toNumericArray(values);
   const result = [];
 
   let previous = null;
 
-  numbers.forEach((value) => {
-    if (value === null) {
-      result.push(previous);
+  nums.forEach(value => {
+    if (!Number.isFinite(value)) {
+      result.push(previous === null ? NaN : previous);
       return;
     }
 
@@ -188,310 +505,340 @@ function exponentialMovingAverage(values = [], alpha = 0.3) {
   return result;
 }
 
-/* =========================================================
-   스케일링
-   ========================================================= */
-
-function minMaxScale(values = []) {
-  const numbers = replaceInvalidWithNull(values);
-  const minValue = min(numbers);
-  const maxValue = max(numbers);
-
-  if (minValue === null || maxValue === null || maxValue === minValue) {
-    return numbers.map(() => 0);
-  }
-
-  return numbers.map((value) => {
-    if (value === null) return null;
-
-    return (value - minValue) / (maxValue - minValue);
-  });
+function simpleExponentialSmoothing(values, alpha = 0.3) {
+  return exponentialMovingAverage(values, alpha);
 }
 
-function zScoreScale(values = []) {
-  const numbers = replaceInvalidWithNull(values);
-  const avg = mean(numbers);
-  const sd = standardDeviation(numbers, false);
-
-  if (avg === null || sd === null || sd === 0) {
-    return numbers.map(() => 0);
-  }
-
-  return numbers.map((value) => {
-    if (value === null) return null;
-
-    return (value - avg) / sd;
-  });
-}
-
-function robustScale(values = []) {
-  const numbers = replaceInvalidWithNull(values);
-  const med = median(numbers);
-  const iqrValue = iqr(numbers);
-
-  if (med === null || iqrValue === null || iqrValue === 0) {
-    return numbers.map(() => 0);
-  }
-
-  return numbers.map((value) => {
-    if (value === null) return null;
-
-    return (value - med) / iqrValue;
-  });
-}
-
-/* =========================================================
-   결측치 처리 보조
-   ========================================================= */
-
-function forwardFill(values = []) {
-  const numbers = replaceInvalidWithNull(values);
-  let lastValue = null;
-
-  return numbers.map((value) => {
-    if (value !== null) {
-      lastValue = value;
-      return value;
-    }
-
-    return lastValue;
-  });
-}
-
-function backwardFill(values = []) {
-  const numbers = replaceInvalidWithNull(values);
-  let nextValue = null;
+function holtLinearSmoothing(values, alpha = 0.3, beta = 0.1) {
+  const nums = toNumericArray(values);
   const result = [];
 
-  for (let i = numbers.length - 1; i >= 0; i -= 1) {
-    const value = numbers[i];
+  const clean = nums.filter(Number.isFinite);
+  if (clean.length === 0) return nums.map(() => NaN);
 
-    if (value !== null) {
-      nextValue = value;
-      result.unshift(value);
-    } else {
-      result.unshift(nextValue);
-    }
-  }
+  let level = clean[0];
+  let trend = clean.length > 1 ? clean[1] - clean[0] : 0;
 
-  return result;
-}
-
-function linearInterpolate(values = []) {
-  const numbers = replaceInvalidWithNull(values);
-  const result = [...numbers];
-
-  for (let i = 0; i < result.length; i += 1) {
-    if (result[i] !== null) continue;
-
-    let leftIndex = i - 1;
-    let rightIndex = i + 1;
-
-    while (leftIndex >= 0 && result[leftIndex] === null) {
-      leftIndex -= 1;
+  nums.forEach((value, index) => {
+    if (!Number.isFinite(value)) {
+      result.push(level + trend);
+      return;
     }
 
-    while (rightIndex < result.length && result[rightIndex] === null) {
-      rightIndex += 1;
+    if (index === 0) {
+      result.push(value);
+      return;
     }
 
-    if (leftIndex >= 0 && rightIndex < result.length) {
-      const leftValue = result[leftIndex];
-      const rightValue = result[rightIndex];
-      const ratio = (i - leftIndex) / (rightIndex - leftIndex);
+    const prevLevel = level;
+    level = alpha * value + (1 - alpha) * (level + trend);
+    trend = beta * (level - prevLevel) + (1 - beta) * trend;
 
-      result[i] = leftValue + ratio * (rightValue - leftValue);
-    } else if (leftIndex >= 0) {
-      result[i] = result[leftIndex];
-    } else if (rightIndex < result.length) {
-      result[i] = result[rightIndex];
-    }
-  }
+    result.push(level + trend);
+  });
 
   return result;
 }
 
 /* =========================================================
-   이상치 탐지
-   ========================================================= */
+   8. 상관 / ACF
+========================================================= */
 
-function detectOutliersIQR(values = [], multiplier = 1.5) {
-  const numbers = replaceInvalidWithNull(values);
-  const q1 = quantile(numbers, 0.25);
-  const q3 = quantile(numbers, 0.75);
-  const iqrValue = iqr(numbers);
+function covariance(xValues, yValues) {
+  const pairs = getValidPairs(xValues, yValues);
 
-  if (q1 === null || q3 === null || iqrValue === null) {
-    return numbers.map(() => false);
-  }
+  if (pairs.length <= 1) return NaN;
 
-  const lowerBound = q1 - multiplier * iqrValue;
-  const upperBound = q3 + multiplier * iqrValue;
+  const xs = pairs.map(pair => pair.actual);
+  const ys = pairs.map(pair => pair.predicted);
 
-  return numbers.map((value) => {
-    if (value === null) return false;
+  const xMean = mean(xs);
+  const yMean = mean(ys);
 
-    return value < lowerBound || value > upperBound;
-  });
+  const covSum = pairs.reduce((acc, pair) => {
+    return acc + (pair.actual - xMean) * (pair.predicted - yMean);
+  }, 0);
+
+  return covSum / (pairs.length - 1);
 }
 
-function detectOutliersZScore(values = [], threshold = 3) {
-  const numbers = replaceInvalidWithNull(values);
-  const avg = mean(numbers);
-  const sd = standardDeviation(numbers, false);
+function correlation(xValues, yValues) {
+  const pairs = getValidPairs(xValues, yValues);
 
-  if (avg === null || sd === null || sd === 0) {
-    return numbers.map(() => false);
+  if (pairs.length <= 1) return NaN;
+
+  const xs = pairs.map(pair => pair.actual);
+  const ys = pairs.map(pair => pair.predicted);
+
+  const stdX = standardDeviation(xs);
+  const stdY = standardDeviation(ys);
+
+  if (!Number.isFinite(stdX) || !Number.isFinite(stdY) || stdX === 0 || stdY === 0) {
+    return NaN;
   }
 
-  return numbers.map((value) => {
-    if (value === null) return false;
-
-    return Math.abs((value - avg) / sd) > threshold;
-  });
+  return covariance(xs, ys) / (stdX * stdY);
 }
 
-function replaceOutliersWithNull(values = [], outlierFlags = []) {
-  return values.map((value, index) => {
-    if (outlierFlags[index]) return null;
+function autocorrelation(values, lag = 1) {
+  const nums = toNumericArray(values);
 
-    return toNumber(value);
-  });
+  if (lag <= 0 || lag >= nums.length) return NaN;
+
+  const x = nums.slice(lag);
+  const y = nums.slice(0, nums.length - lag);
+
+  return correlation(x, y);
+}
+
+function acf(values, maxLag = 24) {
+  const result = [];
+
+  for (let lag = 1; lag <= maxLag; lag += 1) {
+    result.push({
+      lag,
+      value: autocorrelation(values, lag)
+    });
+  }
+
+  return result;
 }
 
 /* =========================================================
-   오차 계산
-   ========================================================= */
+   9. 잔차 계산
+========================================================= */
 
-function absoluteError(actual, predicted) {
-  const a = toNumber(actual);
-  const p = toNumber(predicted);
+function residuals(actual, predicted) {
+  const pairs = getValidPairs(actual, predicted);
 
-  if (a === null || p === null) return null;
-
-  return Math.abs(a - p);
+  return pairs.map(pair => pair.actual - pair.predicted);
 }
 
-function squaredError(actual, predicted) {
-  const a = toNumber(actual);
-  const p = toNumber(predicted);
+function residualSummary(actual, predicted) {
+  const res = residuals(actual, predicted);
 
-  if (a === null || p === null) return null;
-
-  return Math.pow(a - p, 2);
-}
-
-function percentageError(actual, predicted) {
-  const a = toNumber(actual);
-  const p = toNumber(predicted);
-
-  if (a === null || p === null || a === 0) return null;
-
-  return Math.abs((a - p) / a) * 100;
-}
-
-function symmetricPercentageError(actual, predicted) {
-  const a = toNumber(actual);
-  const p = toNumber(predicted);
-
-  if (a === null || p === null) return null;
-
-  const denominator = (Math.abs(a) + Math.abs(p)) / 2;
-
-  if (denominator === 0) return null;
-
-  return (Math.abs(a - p) / denominator) * 100;
+  return {
+    residuals: res,
+    mean: mean(res),
+    median: median(res),
+    std: standardDeviation(res),
+    min: min(res),
+    max: max(res),
+    isCenteredNearZero: Math.abs(mean(res)) < standardDeviation(res)
+  };
 }
 
 /* =========================================================
-   간단 예측 보조
-   ========================================================= */
+   10. 예측 성능평가지표
+========================================================= */
 
-function repeatLastValue(values = [], horizon = 1) {
-  const numbers = cleanNumberArray(values);
-  const lastValue = numbers[numbers.length - 1] ?? null;
+function mae(actual, predicted) {
+  const pairs = getValidPairs(actual, predicted);
+  if (pairs.length === 0) return NaN;
+
+  return mean(pairs.map(pair => Math.abs(pair.error)));
+}
+
+function mse(actual, predicted) {
+  const pairs = getValidPairs(actual, predicted);
+  if (pairs.length === 0) return NaN;
+
+  return mean(pairs.map(pair => Math.pow(pair.error, 2)));
+}
+
+function rmse(actual, predicted) {
+  const value = mse(actual, predicted);
+  return Number.isFinite(value) ? Math.sqrt(value) : NaN;
+}
+
+function mape(actual, predicted) {
+  const pairs = getValidPairs(actual, predicted)
+    .filter(pair => pair.actual !== 0);
+
+  if (pairs.length === 0) return NaN;
+
+  return mean(
+    pairs.map(pair => Math.abs(pair.error / pair.actual))
+  );
+}
+
+function smape(actual, predicted) {
+  const pairs = getValidPairs(actual, predicted)
+    .filter(pair => Math.abs(pair.actual) + Math.abs(pair.predicted) !== 0);
+
+  if (pairs.length === 0) return NaN;
+
+  return mean(
+    pairs.map(pair => {
+      return Math.abs(pair.error) / ((Math.abs(pair.actual) + Math.abs(pair.predicted)) / 2);
+    })
+  );
+}
+
+function mase(actual, predicted, seasonality = 1) {
+  const pairs = getValidPairs(actual, predicted);
+  const yTrue = toNumericArray(actual).filter(Number.isFinite);
+
+  if (pairs.length === 0 || yTrue.length <= seasonality) return NaN;
+
+  const forecastError = mae(actual, predicted);
+
+  const naiveErrors = [];
+
+  for (let i = seasonality; i < yTrue.length; i += 1) {
+    naiveErrors.push(Math.abs(yTrue[i] - yTrue[i - seasonality]));
+  }
+
+  const scale = mean(naiveErrors);
+
+  if (!Number.isFinite(scale) || scale === 0) return NaN;
+
+  return forecastError / scale;
+}
+
+function rsfe(actual, predicted) {
+  const pairs = getValidPairs(actual, predicted);
+  if (pairs.length === 0) return NaN;
+
+  return pairs.reduce((acc, pair) => acc + pair.error, 0);
+}
+
+function trackingSignal(actual, predicted) {
+  const rsfeValue = rsfe(actual, predicted);
+  const maeValue = mae(actual, predicted);
+
+  if (!Number.isFinite(maeValue) || maeValue === 0) return NaN;
+
+  return rsfeValue / maeValue;
+}
+
+function calculateMetrics(actual, predicted, options = {}) {
+  const seasonality = options.seasonality || 1;
+
+  return {
+    MAE: mae(actual, predicted),
+    MSE: mse(actual, predicted),
+    RMSE: rmse(actual, predicted),
+    MAPE: mape(actual, predicted),
+    SMAPE: smape(actual, predicted),
+    MASE: mase(actual, predicted, seasonality),
+    RSFE: rsfe(actual, predicted),
+    TS: trackingSignal(actual, predicted)
+  };
+}
+
+/* =========================================================
+   11. 단순 예측 보조
+========================================================= */
+
+function naiveForecast(values, horizon = 1) {
+  const clean = cleanNumericArray(values);
+  const lastValue = clean[clean.length - 1];
 
   return Array.from({ length: horizon }, () => lastValue);
 }
 
-function repeatMeanValue(values = [], horizon = 1) {
+function meanForecast(values, horizon = 1) {
   const avg = mean(values);
 
   return Array.from({ length: horizon }, () => avg);
 }
 
-function createSequence(length, start = 0, step = 1) {
-  return Array.from({ length }, (_, index) => start + index * step);
+function movingAverageForecast(values, horizon = 1, windowSize = 3) {
+  const nums = cleanNumericArray(values);
+  const result = [];
+  let history = [...nums];
+
+  for (let i = 0; i < horizon; i += 1) {
+    const recent = history.slice(-windowSize);
+    const nextValue = mean(recent);
+
+    result.push(nextValue);
+    history.push(nextValue);
+  }
+
+  return result;
+}
+
+function exponentialSmoothingForecast(values, horizon = 1, alpha = 0.3) {
+  const smoothed = simpleExponentialSmoothing(values, alpha);
+  const clean = cleanNumericArray(smoothed);
+  const lastValue = clean[clean.length - 1];
+
+  return Array.from({ length: horizon }, () => lastValue);
 }
 
 /* =========================================================
-   반올림 / 표시용
-   ========================================================= */
-
-function roundNumber(value, digits = 4) {
-  const number = toNumber(value);
-
-  if (number === null) return null;
-
-  const factor = Math.pow(10, digits);
-
-  return Math.round(number * factor) / factor;
-}
-
-function formatNumber(value, digits = 4) {
-  const rounded = roundNumber(value, digits);
-
-  if (rounded === null) return "-";
-
-  return rounded.toLocaleString();
-}
-
-/* =========================================================
-   전역 노출
-   ========================================================= */
+   12. 외부 접근용 객체
+========================================================= */
 
 window.TSMathUtils = {
   toNumber,
   isValidNumber,
-  cleanNumberArray,
-  replaceInvalidWithNull,
+  toNumericArray,
+  cleanNumericArray,
+  getColumnValues,
+  getValidPairs,
 
   sum,
   mean,
   median,
   min,
   max,
-  range,
   variance,
   standardDeviation,
   quantile,
   iqr,
+  range,
+  describe,
+
+  countMissing,
+  missingRatio,
+  hasMissing,
+
+  zScores,
+  detectOutliersZScore,
+  detectOutliersIQR,
+  detectOutliersHampel,
+
+  fillForward,
+  fillBackward,
+  fillMean,
+  linearInterpolate,
+
+  difference,
+  seasonalDifference,
+  logTransform,
+  inverseLogTransform,
+  normalizeMinMax,
+  standardize,
 
   movingAverage,
   centeredMovingAverage,
   exponentialMovingAverage,
+  simpleExponentialSmoothing,
+  holtLinearSmoothing,
 
-  minMaxScale,
-  zScoreScale,
-  robustScale,
+  covariance,
+  correlation,
+  autocorrelation,
+  acf,
 
-  forwardFill,
-  backwardFill,
-  linearInterpolate,
+  residuals,
+  residualSummary,
 
-  detectOutliersIQR,
-  detectOutliersZScore,
-  replaceOutliersWithNull,
+  mae,
+  mse,
+  rmse,
+  mape,
+  smape,
+  mase,
+  rsfe,
+  trackingSignal,
+  calculateMetrics,
 
-  absoluteError,
-  squaredError,
-  percentageError,
-  symmetricPercentageError,
-
-  repeatLastValue,
-  repeatMeanValue,
-  createSequence,
-
-  roundNumber,
-  formatNumber,
+  naiveForecast,
+  meanForecast,
+  movingAverageForecast,
+  exponentialSmoothingForecast
 };

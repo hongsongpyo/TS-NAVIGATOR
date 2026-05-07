@@ -1,427 +1,649 @@
 /* =========================================================
    TS Navigator - forecastChart.js
-   예측 그래프 / 신뢰구간 / 실제값-예측값 비교
-   ========================================================= */
+   ---------------------------------------------------------
+   역할
+   1. 예측 결과 시각화
+   2. 실제값 + 예측값 + 검증 구간 + 예측 구간 표시
+   3. Forecast Track / Validation Track / Auto Analysis Track 지원
+   4. 예측 신뢰구간 형태의 forecast band 표시
+   5. MAE, RMSE, MAPE 등 주요 성능 결과 badge 표시
+========================================================= */
 
 /* =========================================================
-   예측 결과 통합 그래프
-   원본 + 테스트 예측 + 미래 예측 + 신뢰구간
-   ========================================================= */
+   1. 기본 설정
+========================================================= */
 
-function renderForecastChart({
-  element,
-  sourceTrack,
-  forecastTrack = null,
-  forecastResult = null,
-  title = "Forecast Result",
-  showRangeSlider = true,
-}) {
-  if (!element || !sourceTrack) {
-    TSChartCore.showChartEmpty(element, "예측 그래프를 표시할 Track이 없습니다.");
-    return null;
-  }
-
-  const traces = [];
-
-  const originalTrace = TSChartCore.createLineTrace({
-    x: sourceTrack.x || [],
-    y: sourceTrack.y || [],
-    name: "Actual",
-    color: TSChartCore.getTrackColor(sourceTrack),
-    mode: "lines+markers",
-    width: 2,
-  });
-
-  traces.push(originalTrace);
-
-  const result = forecastResult || createForecastResultFromTrack(forecastTrack);
-
-  if (result?.fittedSeries?.length > 0) {
-    const fittedTrace = TSChartCore.createLineTrace({
-      x: result.fittedSeries.map((item) => item.date),
-      y: result.fittedSeries.map((item) => item.value),
-      name: "Test Forecast",
-      color: "#ff922b",
-      mode: "lines+markers",
-      width: 2,
-      dash: "dash",
-    });
-
-    traces.push(fittedTrace);
-  }
-
-  if (result?.futureSeries?.length > 0) {
-    const futureX = result.futureSeries.map((item) => item.date);
-    const futureY = result.futureSeries.map((item) => item.value);
-    const lower = result.futureSeries.map((item) => item.lower);
-    const upper = result.futureSeries.map((item) => item.upper);
-
-    const hasInterval = lower.some((value) => value !== null && value !== undefined)
-      && upper.some((value) => value !== null && value !== undefined);
-
-    if (hasInterval) {
-      const intervalTraces = TSChartCore.createConfidenceIntervalTraces({
-        x: futureX,
-        lower,
-        upper,
-        color: "rgba(245, 159, 0, 0.18)",
-        name: "Prediction Interval",
-      });
-
-      traces.push(...intervalTraces);
-    }
-
-    const futureTrace = TSChartCore.createLineTrace({
-      x: futureX,
-      y: futureY,
-      name: "Future Forecast",
-      color: TSChartCore.TSChartColors.forecast,
-      mode: "lines+markers",
-      width: 3,
-      dash: "dash",
-    });
-
-    traces.push(futureTrace);
-  } else if (forecastTrack) {
-    const forecastTrace = TSChartCore.createLineTrace({
-      x: forecastTrack.x || [],
-      y: forecastTrack.y || [],
-      name: forecastTrack.name || "Forecast",
-      color: TSChartCore.TSChartColors.forecast,
-      mode: "lines+markers",
-      width: 3,
-      dash: "dash",
-    });
-
-    traces.push(forecastTrace);
-  }
-
-  const layout = createForecastLayout({
-    title,
-    showRangeSlider,
-  });
-
-  const yRange = TSChartCore.getYRangeFromTraces(traces);
-
-  if (yRange) {
-    layout.yaxis.range = yRange;
-  }
-
-  return TSChartCore.renderPlot(element, traces, layout);
-}
+const TSForecastChartConfig = {
+  showLegend: true,
+  showBadge: true,
+  showXLabels: false,
+  showPoints: false,
+  showForecastBand: true,
+  showValidationSplit: true,
+  actualColor: "#8d8d8d",
+  fittedColor: "#76a878",
+  forecastColor: "#9b8db7",
+  validationColor: "#b49a72"
+};
 
 /* =========================================================
-   Forecast Track 기준 그래프
-   ========================================================= */
+   2. Region용 Forecast Chart
+========================================================= */
 
-function renderForecastTrackChart({
-  element,
-  forecastTrack,
-  title = null,
-}) {
-  if (!forecastTrack) {
-    TSChartCore.showChartEmpty(element, "Forecast Track이 없습니다.");
-    return null;
-  }
-
-  const sourceTrackId = forecastTrack.metadata?.sourceTrackId;
-  const sourceTrack = sourceTrackId ? TSStore.getTrackById(sourceTrackId) : null;
-
-  return renderForecastChart({
-    element,
-    sourceTrack,
-    forecastTrack,
-    forecastResult: createForecastResultFromTrack(forecastTrack),
-    title: title || forecastTrack.name,
-  });
-}
-
-/* =========================================================
-   Region 내 Forecast 자동 탐색 그래프
-   ========================================================= */
-
-function renderRegionForecastChart({
-  element,
-  regionId,
-  title = "Forecast View",
-}) {
-  const region = TSStore.getRegionById(regionId);
-
-  if (!region) {
-    TSChartCore.showChartEmpty(element, "Region을 찾을 수 없습니다.");
-    return null;
-  }
-
-  const tracks = region.trackIds
-    .map((trackId) => TSStore.getTrackById(trackId))
-    .filter(Boolean);
-
-  const forecastTrack = [...tracks]
-    .reverse()
-    .find((track) => track.type === "Forecast Data");
+function createForecastChartForRegion(regionId, options = {}) {
+  const tracks = getTracksForRegion(regionId);
+  const forecastTrack = findForecastTrack(tracks);
 
   if (!forecastTrack) {
-    TSChartCore.showChartEmpty(element, "예측 Track이 없습니다.");
-    return null;
+    return createEmptyForecastChartHTML();
   }
 
-  const sourceTrack = TSStore.getTrackById(forecastTrack.metadata?.sourceTrackId)
-    || tracks.find((track) => track.type !== "Forecast Data");
-
-  return renderForecastChart({
-    element,
-    sourceTrack,
-    forecastTrack,
-    forecastResult: createForecastResultFromTrack(forecastTrack),
-    title,
-  });
+  return createForecastChartFromTrack(forecastTrack, tracks, options);
 }
 
-/* =========================================================
-   실제값 vs 예측값 비교 그래프
-   ========================================================= */
-
-function renderActualVsPredictedChart({
-  element,
-  forecastResult,
-  title = "Actual vs Predicted",
-}) {
-  if (!element || !forecastResult || !forecastResult.fittedSeries) {
-    TSChartCore.showChartEmpty(element, "실제값-예측값 비교 데이터가 없습니다.");
-    return null;
-  }
-
-  const fitted = forecastResult.fittedSeries;
-
-  const actualTrace = TSChartCore.createLineTrace({
-    x: fitted.map((item) => item.date),
-    y: fitted.map((item) => item.actual),
-    name: "Actual",
-    color: TSChartCore.TSChartColors.original,
-    mode: "lines+markers",
-    width: 2,
-  });
-
-  const predictedTrace = TSChartCore.createLineTrace({
-    x: fitted.map((item) => item.date),
-    y: fitted.map((item) => item.value),
-    name: "Predicted",
-    color: TSChartCore.TSChartColors.forecast,
-    mode: "lines+markers",
-    width: 2,
-    dash: "dash",
-  });
-
-  const layout = createForecastLayout({
-    title,
-    showRangeSlider: false,
-  });
-
-  return TSChartCore.renderPlot(element, [actualTrace, predictedTrace], layout);
-}
-
-/* =========================================================
-   잔차 그래프
-   ========================================================= */
-
-function renderForecastResidualChart({
-  element,
-  forecastResult,
-  title = "Forecast Residual",
-}) {
-  if (!element || !forecastResult) {
-    TSChartCore.showChartEmpty(element, "잔차를 표시할 데이터가 없습니다.");
-    return null;
-  }
-
-  const fitted = forecastResult.fittedSeries || [];
-  const residuals =
-    forecastResult.residuals ||
-    fitted.map((item) => {
-      const actual = TSMathUtils.toNumber(item.actual);
-      const predicted = TSMathUtils.toNumber(item.value);
-
-      if (actual === null || predicted === null) return null;
-
-      return actual - predicted;
-    });
-
-  const trace = TSChartCore.createLineTrace({
-    x: fitted.map((item) => item.date),
-    y: residuals,
-    name: "Residual",
-    color: TSChartCore.TSChartColors.residual,
-    mode: "lines+markers",
-    width: 2,
-  });
-
-  const zeroLine = {
-    type: "scatter",
-    mode: "lines",
-    x: fitted.map((item) => item.date),
-    y: fitted.map(() => 0),
-    name: "Zero",
-    line: {
-      color: "#adb5bd",
-      width: 1,
-      dash: "dot",
-    },
-    hoverinfo: "skip",
+function createForecastChartFromTrack(forecastTrack, allTracks = [], options = {}) {
+  const config = {
+    ...TSForecastChartConfig,
+    ...options
   };
 
-  const layout = createForecastLayout({
-    title,
-    showRangeSlider: false,
-  });
-
-  layout.yaxis.title.text = "Residual";
-
-  return TSChartCore.renderPlot(element, [trace, zeroLine], layout);
-}
-
-/* =========================================================
-   Forecast Layout
-   ========================================================= */
-
-function createForecastLayout({
-  title = "Forecast",
-  showRangeSlider = true,
-}) {
-  const layout = TSChartCore.createBaseLayout({
-    title,
-    xTitle: "Time",
-    yTitle: "Value",
-    showLegend: true,
-  });
-
-  layout.xaxis = {
-    ...layout.xaxis,
-    type: "date",
-    rangeslider: {
-      visible: showRangeSlider,
-      thickness: 0.08,
-    },
-  };
-
-  return layout;
-}
-
-/* =========================================================
-   Forecast Track → Forecast Result 복원
-   ========================================================= */
-
-function createForecastResultFromTrack(forecastTrack) {
-  if (!forecastTrack) return null;
-
-  const metadata = forecastTrack.metadata || {};
-
-  return {
-    sourceTrackId: metadata.sourceTrackId || null,
-    method: metadata.parameters?.method || metadata.forecastMethod || "unknown",
-    fittedSeries: metadata.fittedSeries || [],
-    futureSeries:
-      metadata.futureSeries ||
-      (forecastTrack.data || []).map((item, index) => ({
-        date: item.date || forecastTrack.x[index],
-        value: item.value ?? forecastTrack.y[index],
-        lower: item.lower,
-        upper: item.upper,
-        forecast: true,
-      })),
-    report: metadata.report || null,
-  };
-}
-
-/* =========================================================
-   Forecast Summary HTML
-   ========================================================= */
-
-function createForecastSummaryHTML(forecastResult) {
-  if (!forecastResult || !forecastResult.report) {
-    return `
-      <div class="forecast-summary empty">
-        예측 요약 정보가 없습니다.
-      </div>
-    `;
+  if (!forecastTrack) {
+    return createEmptyForecastChartHTML();
   }
 
-  const report = forecastResult.report;
-  const metrics = report.metrics;
+  const seriesList = createForecastSeriesList(forecastTrack, allTracks, config);
+
+  if (seriesList.length === 0) {
+    return createEmptyForecastChartHTML();
+  }
+
+  const bounds = window.TSChartCore
+    ? window.TSChartCore.calculateBounds(seriesList, { includeZero: false })
+    : null;
+
+  const context = window.TSChartCore
+    ? window.TSChartCore.createChartContext(config.chartConfig || {}, bounds)
+    : null;
+
+  const chartHTML = window.TSChartCore && context
+    ? createForecastSVG(seriesList, context, forecastTrack, config)
+    : createFallbackForecastChart();
+
+  const badgeHTML = config.showBadge
+    ? createForecastBadgeHTML(forecastTrack)
+    : "";
+
+  const legendHTML = config.showLegend && window.TSChartCore
+    ? window.TSChartCore.createLegend(seriesList)
+    : "";
 
   return `
-    <div class="forecast-summary">
-      <div class="forecast-summary-row">
-        <span>Method</span>
-        <strong>${TSChartCore.escapeHTML(report.method || "-")}</strong>
-      </div>
-      <div class="forecast-summary-row">
-        <span>Train</span>
-        <strong>${report.trainCount ?? "-"}</strong>
-      </div>
-      <div class="forecast-summary-row">
-        <span>Test</span>
-        <strong>${report.testCount ?? "-"}</strong>
-      </div>
-      <div class="forecast-summary-row">
-        <span>Forecast</span>
-        <strong>${report.forecastCount ?? "-"}</strong>
-      </div>
-      <div class="forecast-summary-row">
-        <span>RMSE</span>
-        <strong>${metrics ? TSMathUtils.formatNumber(metrics.rmse, 4) : "-"}</strong>
-      </div>
-      <div class="forecast-summary-row">
-        <span>MAPE</span>
-        <strong>${metrics ? TSMathUtils.formatNumber(metrics.mape, 4) : "-"}%</strong>
-      </div>
-      <p class="forecast-summary-message">
-        ${TSChartCore.escapeHTML(report.message || "")}
-      </p>
+    ${badgeHTML}
+    <div class="ts-chart-layer forecast-chart" data-chart-type="forecast">
+      ${legendHTML}
+      ${chartHTML}
     </div>
   `;
 }
 
 /* =========================================================
-   Forecast Result 전체 패널 렌더링
-   ========================================================= */
+   3. Forecast Series 구성
+========================================================= */
 
-function renderForecastPanel({
-  chartElement,
-  summaryElement,
-  sourceTrack,
-  forecastTrack = null,
-  forecastResult = null,
-}) {
-  const result = forecastResult || createForecastResultFromTrack(forecastTrack);
+function createForecastSeriesList(forecastTrack, allTracks = [], config = {}) {
+  const baseTrack = findBaseActualTrack(forecastTrack, allTracks);
+  const actualSeries = baseTrack
+    ? createActualSeries(baseTrack, config)
+    : createActualSeries(forecastTrack, config);
 
-  renderForecastChart({
-    element: chartElement,
-    sourceTrack,
-    forecastTrack,
-    forecastResult: result,
-    title: "Forecast Result",
-  });
+  const fittedSeries = createFittedSeries(forecastTrack, config);
+  const forecastSeries = createForecastSeries(forecastTrack, config);
+  const validationSeries = createValidationSeries(forecastTrack, config);
 
-  if (summaryElement) {
-    summaryElement.innerHTML = createForecastSummaryHTML(result);
+  return [
+    actualSeries,
+    fittedSeries,
+    validationSeries,
+    forecastSeries
+  ].filter(series => series && series.points && series.points.length > 0);
+}
+
+function createActualSeries(track, config = {}) {
+  const rows = track.data || [];
+  const datetimeColumn = getDatetimeColumn(track);
+  const targetColumn = getTargetColumn(track);
+
+  const points = rows
+    .map((row, index) => {
+      const date = parseDate(row, datetimeColumn);
+      const value = parseValue(row, targetColumn);
+
+      return {
+        x: date ? date.getTime() : index,
+        y: value,
+        rowIndex: index,
+        raw: row
+      };
+    })
+    .filter(point => Number.isFinite(point.y));
+
+  return {
+    id: `${track.id}_actual`,
+    name: "Actual",
+    type: "actual",
+    color: config.actualColor,
+    dashed: false,
+    points
+  };
+}
+
+function createFittedSeries(track, config = {}) {
+  const fittedValues =
+    track.result?.fitted ||
+    track.result?.trainPredicted ||
+    track.metadata?.fitted ||
+    [];
+
+  if (!Array.isArray(fittedValues) || fittedValues.length === 0) {
+    return null;
   }
+
+  const baseRows = track.data || [];
+  const datetimeColumn = getDatetimeColumn(track);
+
+  const points = fittedValues
+    .map((value, index) => {
+      const row = baseRows[index];
+      const date = row ? parseDate(row, datetimeColumn) : null;
+
+      return {
+        x: date ? date.getTime() : index,
+        y: toNumber(value),
+        rowIndex: index
+      };
+    })
+    .filter(point => Number.isFinite(point.y));
+
+  return {
+    id: `${track.id}_fitted`,
+    name: "Fitted",
+    type: "fitted",
+    color: config.fittedColor,
+    dashed: true,
+    points
+  };
+}
+
+function createValidationSeries(track, config = {}) {
+  const validationValues =
+    track.result?.validationPredicted ||
+    track.result?.testPredicted ||
+    track.metadata?.validationPredicted ||
+    [];
+
+  if (!Array.isArray(validationValues) || validationValues.length === 0) {
+    return null;
+  }
+
+  const baseRows = track.data || [];
+  const datetimeColumn = getDatetimeColumn(track);
+  const splitIndex =
+    track.result?.splitIndex ||
+    track.metadata?.splitIndex ||
+    Math.max(0, baseRows.length - validationValues.length);
+
+  const points = validationValues
+    .map((value, index) => {
+      const rowIndex = splitIndex + index;
+      const row = baseRows[rowIndex];
+      const date = row ? parseDate(row, datetimeColumn) : null;
+
+      return {
+        x: date ? date.getTime() : rowIndex,
+        y: toNumber(value),
+        rowIndex
+      };
+    })
+    .filter(point => Number.isFinite(point.y));
+
+  return {
+    id: `${track.id}_validation`,
+    name: "Validation",
+    type: "validation",
+    color: config.validationColor,
+    dashed: true,
+    points
+  };
+}
+
+function createForecastSeries(track, config = {}) {
+  const forecastValues =
+    track.result?.forecast ||
+    track.result?.predicted ||
+    track.metadata?.forecast ||
+    [];
+
+  if (!Array.isArray(forecastValues) || forecastValues.length === 0) {
+    return null;
+  }
+
+  const rows = track.data || [];
+  const datetimeColumn = getDatetimeColumn(track);
+  const frequencyCode = getFrequencyCode(track);
+
+  const lastDate = getLastValidDate(rows, datetimeColumn);
+  const startDate = lastDate && window.TSDateUtils
+    ? window.TSDateUtils.addFrequency(lastDate, frequencyCode, 1)
+    : null;
+
+  const forecastDates = startDate && window.TSDateUtils
+    ? window.TSDateUtils.createDateRangeByPeriods(
+        startDate,
+        forecastValues.length,
+        frequencyCode
+      )
+    : [];
+
+  const points = forecastValues
+    .map((value, index) => ({
+      x: forecastDates[index] ? forecastDates[index].getTime() : rows.length + index,
+      y: toNumber(value),
+      rowIndex: rows.length + index,
+      forecastIndex: index
+    }))
+    .filter(point => Number.isFinite(point.y));
+
+  return {
+    id: `${track.id}_forecast`,
+    name: "Forecast",
+    type: "forecast",
+    color: config.forecastColor,
+    dashed: true,
+    points
+  };
 }
 
 /* =========================================================
-   전역 노출
-   ========================================================= */
+   4. SVG 생성
+========================================================= */
+
+function createForecastSVG(seriesList, context, forecastTrack, config) {
+  const forecastSeries = seriesList.find(series => series.type === "forecast");
+  const validationSeries = seriesList.find(series => series.type === "validation");
+
+  const forecastBand = config.showForecastBand && forecastSeries
+    ? createForecastBand(forecastSeries, context, forecastTrack)
+    : "";
+
+  const validationSplit = config.showValidationSplit && validationSeries
+    ? createValidationSplitLine(validationSeries, context)
+    : "";
+
+  const content = `
+    ${window.TSChartCore.createGrid(context)}
+    ${window.TSChartCore.createAxisFrame(context)}
+    ${window.TSChartCore.createYAxisLabels(context, 0)}
+    ${config.showXLabels ? window.TSChartCore.createXAxisLabels(context) : ""}
+    ${forecastBand}
+    ${validationSplit}
+    ${seriesList.map(series => window.TSChartCore.createPolyline(series, context, {
+      dashed: series.dashed,
+      strokeWidth: series.type === "actual" ? 2.4 : 2.1
+    })).join("")}
+    ${config.showPoints ? seriesList.map(series => window.TSChartCore.createPoints(series, context)).join("") : ""}
+  `;
+
+  return window.TSChartCore.createSVG(content, config.chartConfig || {});
+}
+
+function createForecastBand(forecastSeries, context, track) {
+  if (!forecastSeries || forecastSeries.points.length === 0) return "";
+
+  const startX = forecastSeries.points[0].x;
+  const band = window.TSChartCore.createForecastBand(startX, context);
+
+  const interval = createPredictionIntervalSVG(forecastSeries, context, track);
+
+  return `
+    ${band}
+    ${interval}
+  `;
+}
+
+function createPredictionIntervalSVG(forecastSeries, context, track) {
+  const lower =
+    track.result?.lower ||
+    track.result?.predictionLower ||
+    track.metadata?.predictionLower ||
+    null;
+
+  const upper =
+    track.result?.upper ||
+    track.result?.predictionUpper ||
+    track.metadata?.predictionUpper ||
+    null;
+
+  if (!Array.isArray(lower) || !Array.isArray(upper)) {
+    return "";
+  }
+
+  if (lower.length === 0 || upper.length === 0) return "";
+
+  const areaPointsUpper = [];
+  const areaPointsLower = [];
+
+  forecastSeries.points.forEach((point, index) => {
+    const lowerValue = toNumber(lower[index]);
+    const upperValue = toNumber(upper[index]);
+
+    if (!Number.isFinite(lowerValue) || !Number.isFinite(upperValue)) return;
+
+    areaPointsUpper.push(`${window.TSChartCore.scaleX(point.x, context)},${window.TSChartCore.scaleY(upperValue, context)}`);
+    areaPointsLower.unshift(`${window.TSChartCore.scaleX(point.x, context)},${window.TSChartCore.scaleY(lowerValue, context)}`);
+  });
+
+  if (areaPointsUpper.length === 0 || areaPointsLower.length === 0) return "";
+
+  return `
+    <polygon
+      class="prediction-interval"
+      points="${[...areaPointsUpper, ...areaPointsLower].join(" ")}"
+    ></polygon>
+  `;
+}
+
+function createValidationSplitLine(validationSeries, context) {
+  if (!validationSeries || validationSeries.points.length === 0) return "";
+
+  const firstX = validationSeries.points[0].x;
+  const x = window.TSChartCore.scaleX(firstX, context);
+
+  return `
+    <line
+      class="validation-split-line"
+      x1="${x}"
+      y1="${context.plot.y}"
+      x2="${x}"
+      y2="${context.plot.y + context.plot.height}"
+    ></line>
+    <text
+      class="axis-label"
+      x="${x + 6}"
+      y="${context.plot.y + 12}"
+    >validation</text>
+  `;
+}
+
+/* =========================================================
+   5. Badge
+========================================================= */
+
+function createForecastBadgeHTML(track) {
+  const model =
+    track.result?.model ||
+    track.metadata?.model ||
+    track.metadata?.lastParams?.model ||
+    "Forecast";
+
+  const horizon =
+    track.result?.horizon ||
+    track.metadata?.horizon ||
+    track.metadata?.lastParams?.horizon ||
+    track.result?.forecast?.length ||
+    "-";
+
+  const metrics = track.metrics || track.result?.metrics || {};
+  const metricText = createMetricText(metrics);
+
+  return `
+    <div class="result-badge">
+      <strong>Forecast</strong><br />
+      Model: ${escapeHTML(model)}<br />
+      Horizon: ${escapeHTML(horizon)}<br />
+      ${metricText}
+    </div>
+  `;
+}
+
+function createMetricText(metrics) {
+  if (!metrics || Object.keys(metrics).length === 0) {
+    return "Metrics: -";
+  }
+
+  const keys = ["MAE", "RMSE", "MAPE"];
+
+  return keys
+    .filter(key => Number.isFinite(metrics[key]))
+    .map(key => `${key}: ${formatNumber(metrics[key], key === "MAPE" ? 3 : 2)}`)
+    .join("<br />") || "Metrics: -";
+}
+
+/* =========================================================
+   6. Track 조회
+========================================================= */
+
+function getTracksForRegion(regionId) {
+  const tracks = window.TSState?.tracks || [];
+
+  return tracks.filter(track => {
+    return track.regionId === regionId && track.visible !== false;
+  });
+}
+
+function findForecastTrack(tracks) {
+  if (!Array.isArray(tracks) || tracks.length === 0) return null;
+
+  const forecastTracks = tracks.filter(track => {
+    return (
+      track.type === "Forecast Data" ||
+      track.type === "Auto Analysis Result" ||
+      track.result?.forecast ||
+      track.result?.predicted ||
+      track.metadata?.forecast
+    );
+  });
+
+  if (forecastTracks.length === 0) return null;
+
+  return getLatestTrack(forecastTracks);
+}
+
+function findBaseActualTrack(forecastTrack, allTracks = []) {
+  if (!forecastTrack) return null;
+
+  if (forecastTrack.sourceTrackId) {
+    const sourceTrack = allTracks.find(track => track.id === forecastTrack.sourceTrackId);
+    if (sourceTrack) return sourceTrack;
+  }
+
+  const original = allTracks.find(track => track.type === "Original Data");
+  if (original) return original;
+
+  const preprocessed = allTracks.find(track => track.type === "Preprocessed Data");
+  if (preprocessed) return preprocessed;
+
+  return null;
+}
+
+function getLatestTrack(tracks) {
+  if (!tracks || tracks.length === 0) return null;
+
+  return [...tracks].sort((a, b) => {
+    const timeA = new Date(a.updatedAt || a.createdAt || 0).getTime();
+    const timeB = new Date(b.updatedAt || b.createdAt || 0).getTime();
+
+    return timeB - timeA;
+  })[0];
+}
+
+/* =========================================================
+   7. Column / Date 보조
+========================================================= */
+
+function getDatetimeColumn(track) {
+  return (
+    track?.metadata?.datetimeColumn ||
+    window.TSState?.dataset?.datetimeColumn ||
+    null
+  );
+}
+
+function getTargetColumn(track) {
+  return (
+    track?.metadata?.targetColumn ||
+    window.TSState?.dataset?.targetColumn ||
+    null
+  );
+}
+
+function getFrequencyCode(track) {
+  return (
+    track?.metadata?.frequency?.code ||
+    window.TSState?.dataset?.frequency?.code ||
+    "D"
+  );
+}
+
+function parseDate(row, datetimeColumn) {
+  if (!row || !datetimeColumn) return null;
+
+  if (window.TSDateUtils) {
+    return window.TSDateUtils.parseDateValue(row[datetimeColumn]);
+  }
+
+  const date = new Date(row[datetimeColumn]);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function parseValue(row, targetColumn) {
+  if (!row || !targetColumn) return NaN;
+
+  return toNumber(row[targetColumn]);
+}
+
+function toNumber(value) {
+  if (window.TSMathUtils) {
+    return window.TSMathUtils.toNumber(value);
+  }
+
+  const number = Number(value);
+  return Number.isFinite(number) ? number : NaN;
+}
+
+function getLastValidDate(rows, datetimeColumn) {
+  if (!Array.isArray(rows) || !datetimeColumn) return null;
+
+  for (let i = rows.length - 1; i >= 0; i -= 1) {
+    const date = parseDate(rows[i], datetimeColumn);
+    if (date) return date;
+  }
+
+  return null;
+}
+
+/* =========================================================
+   8. Empty / Fallback
+========================================================= */
+
+function createEmptyForecastChartHTML() {
+  return `
+    <div class="empty-chart">
+      <div class="empty-chart-title">No Forecast Result</div>
+      <div class="empty-chart-sub">
+        Forecast 또는 Auto Analysis를 실행하면 예측 그래프가 표시됩니다.
+      </div>
+    </div>
+  `;
+}
+
+function createFallbackForecastChart() {
+  return `
+    <div class="empty-chart">
+      ChartCore가 로드되지 않았습니다.
+    </div>
+  `;
+}
+
+/* =========================================================
+   9. 스타일 주입
+========================================================= */
+
+function injectForecastChartStyle() {
+  if (document.getElementById("ts-forecast-chart-style")) return;
+
+  const style = document.createElement("style");
+  style.id = "ts-forecast-chart-style";
+  style.textContent = `
+    .forecast-chart {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .prediction-interval {
+      fill: rgba(155,141,183,.18);
+      stroke: none;
+    }
+
+    .validation-split-line {
+      stroke: rgba(255,255,255,.32);
+      stroke-width: 1.2;
+      stroke-dasharray: 5 5;
+      vector-effect: non-scaling-stroke;
+    }
+  `;
+
+  document.head.appendChild(style);
+}
+
+/* =========================================================
+   10. 유틸
+========================================================= */
+
+function formatNumber(value, digits = 2) {
+  if (!Number.isFinite(value)) return "-";
+  return Number(value).toFixed(digits);
+}
+
+function escapeHTML(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+/* =========================================================
+   11. 외부 접근용 객체
+========================================================= */
 
 window.TSForecastChart = {
-  renderForecastChart,
-  renderForecastTrackChart,
-  renderRegionForecastChart,
+  config: TSForecastChartConfig,
 
-  renderActualVsPredictedChart,
-  renderForecastResidualChart,
+  createForecastChartForRegion,
+  createForecastChartFromTrack,
+  createForecastSeriesList,
 
-  createForecastLayout,
-  createForecastResultFromTrack,
+  createActualSeries,
+  createFittedSeries,
+  createValidationSeries,
+  createForecastSeries,
 
-  createForecastSummaryHTML,
-  renderForecastPanel,
+  createForecastSVG,
+  createForecastBadgeHTML,
+
+  findForecastTrack,
+  findBaseActualTrack,
+
+  injectForecastChartStyle
 };
+
+/* =========================================================
+   12. 자동 초기화
+========================================================= */
+
+document.addEventListener("DOMContentLoaded", () => {
+  injectForecastChartStyle();
+});

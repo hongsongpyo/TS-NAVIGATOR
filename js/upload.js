@@ -1,346 +1,353 @@
 /* =========================================================
    TS Navigator - upload.js
-   CSV 업로드 / 파싱 / Original Data Track 생성 / Workspace 이동
-   ========================================================= */
+   ---------------------------------------------------------
+   역할
+   1. Home 화면 CSV 업로드 처리
+   2. CSV 파싱 후 중앙 상태(state.js)에 저장
+   3. Original Track 자동 생성
+   4. 업로드 파일 목록 UI 갱신
+   5. 분석 화면(workspace.html)으로 이동
+========================================================= */
 
 /* =========================================================
-   Upload 초기화
-   ========================================================= */
+   1. DOM 요소 참조
+========================================================= */
 
-function initializeUpload() {
-  const fileInput = document.getElementById("csvFileInput");
-  const uploadCard = document.getElementById("uploadCard");
-  const sampleButton = document.getElementById("sampleDataButton");
+let csvInput = null;
+let uploadText = null;
+let fileNameText = null;
+let startBtn = null;
+let fileListToggle = null;
+let filePreview = null;
 
-  if (fileInput) {
-    fileInput.addEventListener("change", handleCSVFileChange);
+/* =========================================================
+   2. 업로드 상태
+========================================================= */
+
+const TSUploadState = {
+  currentFile: null,
+  currentDataset: null,
+  isLoaded: false,
+  error: null
+};
+
+/* =========================================================
+   3. 초기화
+========================================================= */
+
+function initUpload() {
+  csvInput = document.getElementById("csvInput");
+  uploadText = document.getElementById("uploadText");
+  fileNameText = document.getElementById("fileName");
+  startBtn = document.getElementById("startBtn");
+  fileListToggle = document.getElementById("fileListToggle");
+  filePreview = document.getElementById("filePreview");
+
+  bindUploadEvents();
+  restoreUploadedDatasetSummary();
+  renderUploadState();
+}
+
+function bindUploadEvents() {
+  if (csvInput) {
+    csvInput.addEventListener("change", handleCSVFileChange);
   }
 
-  if (uploadCard) {
-    bindUploadDragAndDrop(uploadCard);
+  if (startBtn) {
+    startBtn.addEventListener("click", handleStartWorkspace);
   }
 
-  if (sampleButton) {
-    sampleButton.addEventListener("click", handleSampleDataLoad);
+  if (fileListToggle) {
+    fileListToggle.addEventListener("click", toggleFilePreview);
   }
 }
 
 /* =========================================================
-   CSV 파일 선택
-   ========================================================= */
+   4. CSV 파일 선택 처리
+========================================================= */
 
 async function handleCSVFileChange(event) {
   const file = event.target.files?.[0];
 
   if (!file) return;
 
-  await loadCSVFile(file);
-}
-
-async function loadCSVFile(file) {
-  try {
-    validateCSVFile(file);
-    setUploadStatus("loading", `${file.name} 파일을 읽는 중입니다.`);
-
-    const dataset = await TSCSVUtils.readCSVFile(file);
-
-    applyDatasetToProject(dataset);
-
-    setUploadStatus("success", `${file.name} 파일 업로드가 완료되었습니다.`);
-
-    goToWorkspace();
-  } catch (error) {
-    console.error(error);
-    setUploadStatus("error", error.message || "CSV 업로드 중 오류가 발생했습니다.");
-  }
-}
-
-/* =========================================================
-   CSV 파일 검증
-   ========================================================= */
-
-function validateCSVFile(file) {
-  if (!file) {
-    throw new Error("CSV 파일이 선택되지 않았습니다.");
-  }
-
-  const fileName = file.name.toLowerCase();
-
-  if (!fileName.endsWith(".csv")) {
-    throw new Error("CSV 파일만 업로드할 수 있습니다.");
-  }
-
-  if (file.size === 0) {
-    throw new Error("빈 파일은 업로드할 수 없습니다.");
-  }
-
-  const maxSize = 10 * 1024 * 1024;
-
-  if (file.size > maxSize) {
-    throw new Error("파일 크기는 10MB 이하만 권장합니다.");
-  }
-}
-
-/* =========================================================
-   Drag & Drop
-   ========================================================= */
-
-function bindUploadDragAndDrop(uploadCard) {
-  uploadCard.addEventListener("dragover", (event) => {
-    event.preventDefault();
-    uploadCard.classList.add("drag-over");
-  });
-
-  uploadCard.addEventListener("dragleave", () => {
-    uploadCard.classList.remove("drag-over");
-  });
-
-  uploadCard.addEventListener("drop", async (event) => {
-    event.preventDefault();
-    uploadCard.classList.remove("drag-over");
-
-    const file = event.dataTransfer.files?.[0];
-
-    if (!file) return;
-
-    await loadCSVFile(file);
-  });
-}
-
-/* =========================================================
-   Dataset 적용
-   ========================================================= */
-
-function applyDatasetToProject(dataset) {
-  if (!dataset || !dataset.rows || dataset.rows.length === 0) {
-    throw new Error("CSV 데이터가 비어 있습니다.");
-  }
-
-  TSStore.resetProject();
-
-  const created = TSDataStructure.createOriginalTrackFromDataset(dataset);
-
-  if (!created || !created.track) {
-    throw new Error("Original Data Track을 생성하지 못했습니다.");
-  }
-
-  TSStore.selectTrack(created.track.id);
-
-  TSStore.setUploadedData({
-    ...dataset,
-    datetimeColumn: created.structure.datetimeColumn,
-    targetColumn: created.structure.targetColumn,
-    frequency: created.structure.frequencyReport.label,
-    summary: {
-      rowCount: created.structure.rowCount,
-      columnCount: created.structure.columnCount,
-      missingCount: created.structure.missingReport.totalMissingCount,
-      duplicateTimestampCount: created.structure.duplicateReport.duplicateCount,
-      startDate: created.structure.datetimeReport.startDate,
-      endDate: created.structure.datetimeReport.endDate,
-    },
-  });
-
-  saveProjectToSession();
-}
-
-/* =========================================================
-   샘플 데이터 로드
-   ========================================================= */
-
-function handleSampleDataLoad() {
-  const dataset = TSSampleData.createSampleDataset({
-    length: 120,
-    startDate: "2024-01-01",
-    frequency: "daily",
-    missingRatio: 0.08,
-    outlierRatio: 0.05,
-    duplicateRatio: 0.03,
-  });
-
-  applyDatasetToProject(dataset);
-
-  setUploadStatus("success", "샘플 시계열 데이터가 생성되었습니다.");
-
-  goToWorkspace();
-}
-
-/* =========================================================
-   Workspace 이동
-   ========================================================= */
-
-function goToWorkspace() {
-  const currentPath = window.location.pathname;
-
-  if (currentPath.endsWith("workspace.html")) {
-    initializeWorkspaceAfterUpload();
+  if (!isCSVFile(file)) {
+    setUploadError("CSV 파일만 업로드할 수 있습니다.");
     return;
   }
 
-  window.location.href = "./workspace.html";
-}
-
-function initializeWorkspaceAfterUpload() {
-  if (window.TSApp && typeof TSApp.initializeWorkspace === "function") {
-    TSApp.initializeWorkspace();
-  }
-}
-
-/* =========================================================
-   Session Storage 저장 / 복원
-   ========================================================= */
-
-function saveProjectToSession() {
   try {
-    const snapshot = {
-      app: TSState.app,
-      uploadedData: TSState.uploadedData,
-      tracks: TSState.tracks,
-      selectedTrackId: TSState.selectedTrackId,
-      regions: TSState.regions,
-      selectedRegionId: TSState.selectedRegionId,
-      processes: TSState.processes,
-      autoAnalysis: TSState.autoAnalysis,
-    };
+    setUploadLoading(file.name);
 
-    sessionStorage.setItem("tsNavigatorProject", JSON.stringify(snapshot));
+    const dataset = await window.TSCSVUtils.readCSVFile(file);
+
+    applyDatasetToProject(file, dataset);
+    saveDatasetSummaryToSession(dataset);
+
+    TSUploadState.currentFile = file;
+    TSUploadState.currentDataset = dataset;
+    TSUploadState.isLoaded = true;
+    TSUploadState.error = null;
+
+    renderUploadState();
   } catch (error) {
-    console.warn("프로젝트 상태를 sessionStorage에 저장하지 못했습니다.", error);
+    console.error(error);
+    setUploadError("CSV 파일을 불러오는 중 오류가 발생했습니다.");
   }
 }
 
-function loadProjectFromSession() {
+function isCSVFile(file) {
+  const fileName = file.name.toLowerCase();
+
+  return (
+    file.type === "text/csv" ||
+    file.type === "application/vnd.ms-excel" ||
+    fileName.endsWith(".csv")
+  );
+}
+
+/* =========================================================
+   5. 프로젝트 상태 반영
+========================================================= */
+
+function applyDatasetToProject(file, dataset) {
+  if (!window.TSStore) {
+    throw new Error("TSStore가 로드되지 않았습니다. state.js를 먼저 연결하세요.");
+  }
+
+  window.TSStore.initProject();
+
+  window.TSStore.setDataset({
+    fileName: file.name,
+    rawText: dataset.rawText,
+    rows: dataset.rows,
+    columns: dataset.columns,
+    datetimeColumn: dataset.datetimeColumn,
+    targetColumn: dataset.targetColumn,
+    frequency: dataset.frequency,
+    structureSummary: dataset.structureSummary
+  });
+
+  const originalTrack = window.TSStore.createOriginalTrack(dataset.rows);
+
+  const structureParams = window.TSStore.getDefaultParams("Structure");
+
+  window.TSStore.addAnalysisToTrack(originalTrack.id, "Structure", {
+    ...structureParams,
+    datetimeColumn: dataset.datetimeColumn || "auto",
+    targetColumn: dataset.targetColumn || "auto",
+    detectedFrequency: dataset.frequency?.code || null
+  });
+
+  window.TSStore.commitTrackResult(originalTrack.id, {
+    data: dataset.rows,
+    metadata: {
+      fileName: file.name,
+      rowCount: dataset.rowCount,
+      columnCount: dataset.columnCount,
+      datetimeColumn: dataset.datetimeColumn,
+      targetColumn: dataset.targetColumn,
+      frequency: dataset.frequency,
+      numericColumns: dataset.numericColumns,
+      categoricalColumns: dataset.categoricalColumns,
+      errors: dataset.errors
+    },
+    result: {
+      type: "structure",
+      summary: dataset.structureSummary,
+      previewRows: dataset.previewRows
+    }
+  });
+}
+
+/* =========================================================
+   6. 화면 표시 갱신
+========================================================= */
+
+function renderUploadState() {
+  if (!fileNameText || !uploadText || !startBtn) return;
+
+  if (TSUploadState.error) {
+    uploadText.textContent = "다시 CSV 파일 업로드하기";
+    fileNameText.textContent = TSUploadState.error;
+    startBtn.disabled = true;
+    startBtn.classList.add("disabled");
+    return;
+  }
+
+  if (!TSUploadState.isLoaded || !TSUploadState.currentDataset) {
+    uploadText.textContent = "분석할 CSV 파일을 업로드하기";
+    fileNameText.textContent = "아직 업로드된 파일이 없습니다.";
+    startBtn.disabled = true;
+    startBtn.classList.add("disabled");
+    return;
+  }
+
+  const dataset = TSUploadState.currentDataset;
+
+  uploadText.textContent = dataset.fileName || "CSV 파일 업로드 완료";
+  fileNameText.textContent = createUploadedFileLabel(dataset);
+
+  startBtn.disabled = false;
+  startBtn.classList.remove("disabled");
+}
+
+function createUploadedFileLabel(dataset) {
+  const rowCount = dataset.rowCount ?? dataset.rows?.length ?? 0;
+  const targetColumn = dataset.targetColumn || "target 미탐지";
+  const datetimeColumn = dataset.datetimeColumn || "date 미탐지";
+  const frequency = dataset.frequency?.label || "주기 미탐지";
+
+  return `${dataset.fileName} · ${rowCount}행 · ${datetimeColumn} / ${targetColumn} · ${frequency}`;
+}
+
+function setUploadLoading(fileName) {
+  TSUploadState.currentFile = null;
+  TSUploadState.currentDataset = null;
+  TSUploadState.isLoaded = false;
+  TSUploadState.error = null;
+
+  if (uploadText) uploadText.textContent = "CSV 파일을 불러오는 중...";
+  if (fileNameText) fileNameText.textContent = `${fileName} 분석 준비 중`;
+  if (startBtn) startBtn.disabled = true;
+}
+
+function setUploadError(message) {
+  TSUploadState.currentFile = null;
+  TSUploadState.currentDataset = null;
+  TSUploadState.isLoaded = false;
+  TSUploadState.error = message;
+
+  renderUploadState();
+}
+
+function toggleFilePreview() {
+  if (!filePreview) return;
+
+  filePreview.classList.toggle("hidden");
+}
+
+/* =========================================================
+   7. Workspace 이동
+========================================================= */
+
+function handleStartWorkspace() {
+  if (!TSUploadState.isLoaded || !TSUploadState.currentDataset) {
+    setUploadError("먼저 CSV 파일을 업로드하세요.");
+    return;
+  }
+
+  saveDatasetSummaryToSession(TSUploadState.currentDataset);
+  saveProjectStateToSession();
+
+  window.location.href = "workspace.html";
+}
+
+/* =========================================================
+   8. Session Storage 저장/복원
+========================================================= */
+
+function saveDatasetSummaryToSession(dataset) {
+  const safeDataset = {
+    fileName: dataset.fileName,
+    delimiter: dataset.delimiter,
+    columns: dataset.columns,
+    rows: dataset.rows,
+    rowCount: dataset.rowCount,
+    columnCount: dataset.columnCount,
+    datetimeColumn: dataset.datetimeColumn,
+    targetColumn: dataset.targetColumn,
+    frequency: dataset.frequency,
+    structureSummary: dataset.structureSummary,
+    numericColumns: dataset.numericColumns,
+    categoricalColumns: dataset.categoricalColumns,
+    previewRows: dataset.previewRows,
+    errors: dataset.errors
+  };
+
+  sessionStorage.setItem("TS_NAVIGATOR_DATASET", JSON.stringify(safeDataset));
+}
+
+function saveProjectStateToSession() {
+  if (!window.TSState) return;
+
+  sessionStorage.setItem("TS_NAVIGATOR_STATE", JSON.stringify(window.TSState));
+}
+
+function restoreUploadedDatasetSummary() {
+  const savedDatasetText = sessionStorage.getItem("TS_NAVIGATOR_DATASET");
+
+  if (!savedDatasetText) return;
+
   try {
-    const raw = sessionStorage.getItem("tsNavigatorProject");
+    const dataset = JSON.parse(savedDatasetText);
 
-    if (!raw) return false;
-
-    const snapshot = JSON.parse(raw);
-
-    restoreProjectSnapshot(snapshot);
-
-    return true;
+    TSUploadState.currentDataset = dataset;
+    TSUploadState.currentFile = null;
+    TSUploadState.isLoaded = true;
+    TSUploadState.error = null;
   } catch (error) {
-    console.warn("프로젝트 상태를 복원하지 못했습니다.", error);
-    return false;
-  }
-}
-
-function restoreProjectSnapshot(snapshot) {
-  if (!snapshot) return;
-
-  TSState.app = {
-    ...TSState.app,
-    ...(snapshot.app || {}),
-  };
-
-  TSState.uploadedData = {
-    ...TSState.uploadedData,
-    ...(snapshot.uploadedData || {}),
-  };
-
-  TSState.tracks = snapshot.tracks || [];
-  TSState.selectedTrackId = snapshot.selectedTrackId || TSState.tracks[0]?.id || null;
-
-  TSState.regions = snapshot.regions || TSState.regions;
-  TSState.selectedRegionId = snapshot.selectedRegionId || TSState.regions[0]?.id || null;
-
-  TSState.processes = snapshot.processes || [];
-
-  TSState.autoAnalysis = {
-    ...TSState.autoAnalysis,
-    ...(snapshot.autoAnalysis || {}),
-  };
-
-  TSState.app.currentPage = "workspace";
-}
-
-function clearProjectSession() {
-  sessionStorage.removeItem("tsNavigatorProject");
-}
-
-/* =========================================================
-   Upload 상태 표시
-   ========================================================= */
-
-function setUploadStatus(type, message) {
-  const status = document.getElementById("uploadStatus");
-  const selectedFileName = document.getElementById("selectedFileName");
-
-  if (selectedFileName && message) {
-    selectedFileName.textContent = message;
-  }
-
-  if (!status) return;
-
-  status.className = `upload-status ${type}`;
-  status.textContent = message;
-}
-
-function resetUploadStatus() {
-  const status = document.getElementById("uploadStatus");
-  const selectedFileName = document.getElementById("selectedFileName");
-
-  if (selectedFileName) {
-    selectedFileName.textContent = "파일";
-  }
-
-  if (status) {
-    status.className = "upload-status";
-    status.textContent = "";
+    console.warn("저장된 데이터셋 정보를 복원하지 못했습니다.", error);
+    sessionStorage.removeItem("TS_NAVIGATOR_DATASET");
   }
 }
 
 /* =========================================================
-   업로드 후 데이터 정보
-   ========================================================= */
+   9. 샘플 데이터 로드
+========================================================= */
 
-function getUploadedFileSummaryText() {
-  const data = TSState.uploadedData;
-
-  if (!data.fileName) {
-    return "업로드된 파일이 없습니다.";
+function loadSampleCSV() {
+  if (!window.TSCSVUtils) {
+    setUploadError("CSV 유틸리티가 로드되지 않았습니다.");
+    return;
   }
 
-  return [
-    `파일명: ${data.fileName}`,
-    `행 개수: ${data.summary?.rowCount ?? 0}`,
-    `열 개수: ${data.summary?.columnCount ?? 0}`,
-    `Datetime Column: ${data.datetimeColumn || "-"}`,
-    `Target Column: ${data.targetColumn || "-"}`,
-    `Frequency: ${data.frequency || "-"}`,
-    `결측치 수: ${data.summary?.missingCount ?? 0}`,
-    `중복 Timestamp 수: ${data.summary?.duplicateTimestampCount ?? 0}`,
-  ].join("\n");
+  const rawText = window.TSCSVUtils.createSampleCSV();
+
+  const dataset = window.TSCSVUtils.parseCSV(rawText, {
+    fileName: "sample_time_series.csv"
+  });
+
+  const fakeFile = {
+    name: "sample_time_series.csv"
+  };
+
+  applyDatasetToProject(fakeFile, dataset);
+  saveDatasetSummaryToSession(dataset);
+
+  TSUploadState.currentFile = fakeFile;
+  TSUploadState.currentDataset = dataset;
+  TSUploadState.isLoaded = true;
+  TSUploadState.error = null;
+
+  renderUploadState();
 }
 
 /* =========================================================
-   전역 노출
-   ========================================================= */
+   10. 외부 접근용 객체
+========================================================= */
 
 window.TSUpload = {
-  initializeUpload,
+  state: TSUploadState,
 
+  initUpload,
   handleCSVFileChange,
-  loadCSVFile,
-  validateCSVFile,
-
-  bindUploadDragAndDrop,
+  handleStartWorkspace,
 
   applyDatasetToProject,
+  renderUploadState,
 
-  handleSampleDataLoad,
+  saveDatasetSummaryToSession,
+  saveProjectStateToSession,
+  restoreUploadedDatasetSummary,
 
-  goToWorkspace,
-  initializeWorkspaceAfterUpload,
-
-  saveProjectToSession,
-  loadProjectFromSession,
-  restoreProjectSnapshot,
-  clearProjectSession,
-
-  setUploadStatus,
-  resetUploadStatus,
-
-  getUploadedFileSummaryText,
+  loadSampleCSV
 };
+
+/* =========================================================
+   11. 자동 초기화
+========================================================= */
+
+document.addEventListener("DOMContentLoaded", () => {
+  initUpload();
+});

@@ -1,745 +1,656 @@
 /* =========================================================
    TS Navigator - inspector.js
-   Track Inspector 렌더링 / 선택 Track 정보 / 처리 버튼
-   ========================================================= */
+   ---------------------------------------------------------
+   역할
+   1. 왼쪽 Inspector UI 렌더링
+   2. 선택된 Track 정보 표시
+   3. Analysis Stack 표시
+   4. 빈 Slot 클릭 시 Add Analysis 팝업 열기
+   5. Stack 항목 클릭 시 Parameter 팝업 열기
+   6. Track 이름 / 색상 / 표시 / 잠금 / 복제 / 삭제 관리
+========================================================= */
 
 /* =========================================================
-   Inspector 전체 렌더링
-   ========================================================= */
+   1. DOM 참조
+========================================================= */
 
-function renderInspector() {
-  const container = document.getElementById("trackInspector");
-
-  if (!container) return;
-
-  const selectedTrack = TSStore.getSelectedTrack();
-
-  container.innerHTML = `
-    <div class="inspector-header">
-      <div>
-        <p class="section-kicker">TRACK INSPECTOR</p>
-        <h2 class="section-title">Inspector</h2>
-      </div>
-
-      <button 
-        type="button" 
-        class="inspector-toggle-button"
-        id="inspectorToggleButton"
-        title="Inspector 열기/닫기"
-      >
-        ${TSState.app.inspectorOpen ? "◀" : "▶"}
-      </button>
-    </div>
-
-    ${
-      selectedTrack
-        ? createSelectedTrackInspectorHTML(selectedTrack)
-        : createEmptyInspectorHTML()
-    }
-  `;
-
-  bindInspectorEvents();
-}
+let inspectorRoot = null;
 
 /* =========================================================
-   Empty 상태
-   ========================================================= */
+   2. Inspector 초기화
+========================================================= */
 
-function createEmptyInspectorHTML() {
-  return `
-    <div class="inspector-empty">
-      <p>선택된 Track이 없습니다.</p>
-      <span>Timeline에서 Track을 선택하면 상세 정보가 표시됩니다.</span>
-    </div>
-  `;
-}
+function initInspector() {
+  inspectorRoot = document.querySelector(".inspector .panel-inner");
 
-/* =========================================================
-   선택 Track Inspector HTML
-   ========================================================= */
-
-function createSelectedTrackInspectorHTML(track) {
-  const region = TSStore.getRegionById(track.regionId);
-  const process = track.processId ? TSStore.getProcessById(track.processId) : null;
-
-  return `
-    <div class="selected-track-panel">
-      <div class="selected-track-summary">
-        <span 
-          class="selected-track-color"
-          style="background:${track.color || "#2f80ed"}"
-        ></span>
-
-        <div>
-          <p class="selected-track-label">Selected Track</p>
-          <h3>${escapeInspectorHTML(track.name)}</h3>
-        </div>
-      </div>
-
-      <div class="inspector-status-row">
-        <span class="status-pill ${getProjectStatusClass()}">
-          ${getProjectStatusText()}
-        </span>
-
-        <span class="status-pill">
-          ${track.locked ? "Locked" : "Editable"}
-        </span>
-      </div>
-
-      <div class="inspector-section">
-        <div class="inspector-section-title">Track Info</div>
-
-        <label class="inspector-field">
-          <span>Track Name</span>
-          <input 
-            type="text" 
-            id="trackNameInput"
-            value="${escapeInspectorHTML(track.name)}"
-          />
-        </label>
-
-        <label class="inspector-field">
-          <span>Track Color</span>
-          <input 
-            type="color" 
-            id="trackColorInput"
-            value="${track.color || "#2f80ed"}"
-          />
-        </label>
-
-        <label class="inspector-field">
-          <span>Track Type</span>
-          <select id="trackTypeSelect">
-            ${createTrackTypeOptionsHTML(track.type)}
-          </select>
-        </label>
-
-        <label class="inspector-field">
-          <span>Region Assignment</span>
-          <select id="trackRegionSelect">
-            ${createRegionOptionsHTML(track.regionId)}
-          </select>
-        </label>
-      </div>
-
-      <div class="inspector-section">
-        <div class="inspector-section-title">Track Control</div>
-
-        <div class="inspector-button-grid">
-          <button 
-            type="button" 
-            class="inspector-action-button"
-            data-inspector-action="toggle-visible"
-          >
-            ${track.visible !== false ? "Visibility OFF" : "Visibility ON"}
-          </button>
-
-          <button 
-            type="button" 
-            class="inspector-action-button"
-            data-inspector-action="toggle-lock"
-          >
-            ${track.locked ? "Unlock Track" : "Lock Track"}
-          </button>
-
-          <button 
-            type="button" 
-            class="inspector-action-button"
-            data-inspector-action="duplicate-track"
-          >
-            Duplicate
-          </button>
-
-          <button 
-            type="button" 
-            class="inspector-action-button danger"
-            data-inspector-action="delete-track"
-          >
-            Delete
-          </button>
-        </div>
-      </div>
-
-      <div class="inspector-section">
-        <div class="inspector-section-title">Process</div>
-
-        <div class="inspector-process-list">
-          ${createProcessButtonsHTML(track)}
-        </div>
-      </div>
-
-      <div class="inspector-section">
-        <div class="inspector-section-title">Data Summary</div>
-
-        <div class="inspector-summary-list">
-          ${createTrackSummaryHTML(track, region, process)}
-        </div>
-      </div>
-
-      <div class="inspector-section">
-        <div class="inspector-section-title">AI Guide</div>
-
-        <button 
-          type="button" 
-          class="inspector-wide-button primary"
-          data-inspector-action="ask-ai"
-        >
-          이 Track 기준으로 분석 추천 받기
-        </button>
-      </div>
-    </div>
-  `;
-}
-
-/* =========================================================
-   Option HTML
-   ========================================================= */
-
-function createTrackTypeOptionsHTML(selectedType) {
-  const types = [
-    "Original Data",
-    "Preprocessed Data",
-    "Feature Data",
-    "Forecast Data",
-    "Residual Data",
-    "Evaluation Result",
-  ];
-
-  return types
-    .map((type) => {
-      return `
-        <option value="${type}" ${type === selectedType ? "selected" : ""}>
-          ${type}
-        </option>
-      `;
-    })
-    .join("");
-}
-
-function createRegionOptionsHTML(selectedRegionId) {
-  return TSState.regions
-    .map((region) => {
-      return `
-        <option value="${region.id}" ${
-        region.id === selectedRegionId ? "selected" : ""
-      }>
-          ${escapeInspectorHTML(region.name)}
-        </option>
-      `;
-    })
-    .join("");
-}
-
-/* =========================================================
-   Process Buttons
-   ========================================================= */
-
-function createProcessButtonsHTML(track) {
-  if (!track || track.type === "Evaluation Result") {
-    return `
-      <button 
-        type="button" 
-        class="process-button disabled"
-        disabled
-      >
-        평가지표 Track은 추가 처리를 지원하지 않습니다.
-      </button>
-    `;
-  }
-
-  return `
-    <button 
-      type="button" 
-      class="process-button"
-      data-inspector-action="open-preprocessing"
-    >
-      전처리 설정
-    </button>
-
-    <button 
-      type="button" 
-      class="process-button"
-      data-inspector-action="open-denoising"
-    >
-      잡음 완화
-    </button>
-
-    <button 
-      type="button" 
-      class="process-button"
-      data-inspector-action="open-decomposition"
-    >
-      분해
-    </button>
-
-    <button 
-      type="button" 
-      class="process-button"
-      data-inspector-action="open-forecasting"
-    >
-      예측 모델
-    </button>
-
-    <button 
-      type="button" 
-      class="process-button primary"
-      data-inspector-action="run-auto-analysis"
-    >
-      자동분석 실행
-    </button>
-  `;
-}
-
-/* =========================================================
-   Summary HTML
-   ========================================================= */
-
-function createTrackSummaryHTML(track, region, process) {
-  const values = track.y || [];
-  const validValues = TSMathUtils.cleanNumberArray(values);
-
-  const rows = [
-    ["Type", track.type],
-    ["Region", region?.name || "-"],
-    ["Points", values.length],
-    ["Valid Values", validValues.length],
-    ["Missing", values.length - validValues.length],
-    ["Mean", TSMathUtils.formatNumber(TSMathUtils.mean(validValues), 4)],
-    ["Min", TSMathUtils.formatNumber(TSMathUtils.min(validValues), 4)],
-    ["Max", TSMathUtils.formatNumber(TSMathUtils.max(validValues), 4)],
-    ["Process", process?.name || "-"],
-  ];
-
-  return rows
-    .map(([label, value]) => {
-      return `
-        <div class="inspector-summary-row">
-          <span>${escapeInspectorHTML(label)}</span>
-          <strong>${escapeInspectorHTML(value)}</strong>
-        </div>
-      `;
-    })
-    .join("");
-}
-
-/* =========================================================
-   Event 연결
-   ========================================================= */
-
-function bindInspectorEvents() {
-  const toggleButton = document.getElementById("inspectorToggleButton");
-  const nameInput = document.getElementById("trackNameInput");
-  const colorInput = document.getElementById("trackColorInput");
-  const typeSelect = document.getElementById("trackTypeSelect");
-  const regionSelect = document.getElementById("trackRegionSelect");
-  const container = document.getElementById("trackInspector");
-
-  if (toggleButton) {
-    toggleButton.addEventListener("click", handleInspectorToggle);
-  }
-
-  if (nameInput) {
-    nameInput.addEventListener("change", handleTrackNameChange);
-  }
-
-  if (colorInput) {
-    colorInput.addEventListener("change", handleTrackColorChange);
-  }
-
-  if (typeSelect) {
-    typeSelect.addEventListener("change", handleTrackTypeChange);
-  }
-
-  if (regionSelect) {
-    regionSelect.addEventListener("change", handleTrackRegionChange);
-  }
-
-  if (container) {
-    container.addEventListener("click", handleInspectorActionClick);
-  }
-}
-
-/* =========================================================
-   기본 변경 Handler
-   ========================================================= */
-
-function handleInspectorToggle() {
-  TSStore.toggleInspector();
-
-  if (window.TSLayout) {
-    TSLayout.applyWorkspaceLayout();
-  }
-
-  renderInspector();
-}
-
-function handleTrackNameChange(event) {
-  const track = TSStore.getSelectedTrack();
-
-  if (!track) return;
-
-  TSStore.renameTrack(track.id, event.target.value.trim() || track.name);
-
-  refreshInspectorConnectedUI();
-}
-
-function handleTrackColorChange(event) {
-  const track = TSStore.getSelectedTrack();
-
-  if (!track) return;
-
-  TSStore.setTrackColor(track.id, event.target.value);
-
-  refreshInspectorConnectedUI();
-}
-
-function handleTrackTypeChange(event) {
-  const track = TSStore.getSelectedTrack();
-
-  if (!track) return;
-
-  TSStore.updateTrack(track.id, {
-    type: event.target.value,
-  });
-
-  refreshInspectorConnectedUI();
-}
-
-function handleTrackRegionChange(event) {
-  const track = TSStore.getSelectedTrack();
-
-  if (!track) return;
-
-  TSStore.assignTrackToRegion(track.id, event.target.value);
-
-  refreshInspectorConnectedUI();
-}
-
-/* =========================================================
-   Inspector Action
-   ========================================================= */
-
-function handleInspectorActionClick(event) {
-  const button = event.target.closest("[data-inspector-action]");
-
-  if (!button) return;
-
-  const action = button.dataset.inspectorAction;
-  const track = TSStore.getSelectedTrack();
-
-  if (!track) return;
-
-  switch (action) {
-    case "toggle-visible":
-      TSStore.toggleTrackVisibility(track.id);
-      break;
-
-    case "toggle-lock":
-      TSStore.toggleTrackLock(track.id);
-      break;
-
-    case "duplicate-track":
-      TSStore.duplicateTrack(track.id);
-      break;
-
-    case "delete-track":
-      deleteSelectedTrack(track.id);
-      break;
-
-    case "open-preprocessing":
-      openProcessPopupFromInspector(track.id, "preprocessing");
-      break;
-
-    case "open-denoising":
-      openProcessPopupFromInspector(track.id, "denoising");
-      break;
-
-    case "open-decomposition":
-      openProcessPopupFromInspector(track.id, "decomposition");
-      break;
-
-    case "open-forecasting":
-      openProcessPopupFromInspector(track.id, "forecasting");
-      break;
-
-    case "run-auto-analysis":
-      runAutoAnalysisFromInspector(track.id);
-      break;
-
-    case "ask-ai":
-      askAIFromInspector(track);
-      break;
-
-    default:
-      break;
-  }
-
-  refreshInspectorConnectedUI();
-}
-
-function deleteSelectedTrack(trackId) {
-  const track = TSStore.getTrackById(trackId);
-
-  if (!track) return;
-
-  const confirmed = window.confirm(`"${track.name}" Track을 삭제할까요?`);
-
-  if (!confirmed) return;
-
-  TSStore.deleteTrack(trackId);
-}
-
-/* =========================================================
-   Process Popup 연결
-   ========================================================= */
-
-function openProcessPopupFromInspector(trackId, type) {
-  const process = TSStore.createProcess({
-    name: getProcessNameByType(type),
-    type,
-    trackId,
-    parameters: getDefaultProcessParameters(type),
-    status: "ready",
-  });
-
-  if (window.TSPopupUI) {
-    TSPopupUI.openPopup(process.id, type);
-  }
-}
-
-function getProcessNameByType(type) {
-  switch (type) {
-    case "preprocessing":
-      return "Preprocessing";
-
-    case "denoising":
-      return "Denoising";
-
-    case "decomposition":
-      return "Decomposition";
-
-    case "forecasting":
-      return "Forecasting";
-
-    default:
-      return "Process";
-  }
-}
-
-function getDefaultProcessParameters(type) {
-  switch (type) {
-    case "preprocessing":
-      return {
-        missingMethod: "linear",
-        outlierMethod: "iqr",
-        outlierAction: "interpolate",
-        scaleMethod: "none",
-        resampleFrequency: "",
-      };
-
-    case "denoising":
-      return {
-        method: "moving-average",
-        windowSize: 5,
-        alpha: 0.3,
-        fourierKeepRatio: 0.2,
-      };
-
-    case "decomposition":
-      return {
-        model: "additive",
-        period: 12,
-        trendWindow: 12,
-      };
-
-    case "forecasting":
-      return {
-        method: "holt",
-        horizon: 12,
-        trainRatio: 0.8,
-        windowSize: 5,
-        alpha: 0.3,
-        beta: 0.1,
-        arimaP: 1,
-        arimaD: 1,
-        arimaQ: 0,
-      };
-
-    default:
-      return {};
-  }
-}
-
-/* =========================================================
-   자동분석
-   ========================================================= */
-
-function runAutoAnalysisFromInspector(trackId) {
-  if (!window.TSTimelineUI) return;
-
-  const result = TSTimelineUI.runTimelineAutoAnalysis(trackId);
-
-  if (!result) {
-    alert("자동분석을 실행할 수 없습니다.");
+  if (!inspectorRoot) {
+    console.warn("Inspector 영역을 찾지 못했습니다.");
     return;
   }
 
-  TSStore.setAutoAnalysisResult(result);
+  renderInspector();
+  bindInspectorEvents();
+}
 
-  result.createdTrackIds.forEach((createdTrackId) => {
-    TSStore.addAutoAnalysisTrackId(createdTrackId);
-  });
+function bindInspectorEvents() {
+  if (!inspectorRoot) return;
+
+  inspectorRoot.addEventListener("click", handleInspectorClick);
+  inspectorRoot.addEventListener("change", handleInspectorChange);
+  inspectorRoot.addEventListener("input", handleInspectorInput);
 }
 
 /* =========================================================
-   AI Assistant 연결
-   ========================================================= */
+   3. Inspector 렌더링
+========================================================= */
 
-function askAIFromInspector(track) {
-  if (!track) return;
+function renderInspector() {
+  inspectorRoot = document.querySelector(".inspector .panel-inner");
 
-  const summary = createAIQuestionFromTrack(track);
+  if (!inspectorRoot || !window.TSState) return;
 
-  if (window.TSAssistantUI) {
-    TSAssistantUI.openAssistantWithMessage(summary);
-  } else {
-    TSStore.openAssistant();
-    TSStore.addAssistantMessage("user", summary);
-  }
-}
+  const selectedTrack = window.TSStore?.getSelectedTrack();
 
-function createAIQuestionFromTrack(track) {
-  const values = track.y || [];
-  const validValues = TSMathUtils.cleanNumberArray(values);
+  inspectorRoot.innerHTML = `
+    <div class="panel-title">Inspector</div>
 
-  return [
-    `"${track.name}" Track을 기준으로 분석 방법을 추천해줘.`,
-    "",
-    `Track Type: ${track.type}`,
-    `Data Points: ${values.length}`,
-    `Valid Values: ${validValues.length}`,
-    `Missing Values: ${values.length - validValues.length}`,
-    `Mean: ${TSMathUtils.formatNumber(TSMathUtils.mean(validValues), 4)}`,
-    `Min: ${TSMathUtils.formatNumber(TSMathUtils.min(validValues), 4)}`,
-    `Max: ${TSMathUtils.formatNumber(TSMathUtils.max(validValues), 4)}`,
-    "",
-    "전처리, 분해, 예측 모델, 평가지표를 어떤 순서로 적용하면 좋을지 알려줘.",
-  ].join("\n");
+    ${selectedTrack ? createSelectedTrackHTML(selectedTrack) : createEmptyTrackHTML()}
+
+    <div class="section-title">Analysis Stack</div>
+    ${selectedTrack ? createAnalysisStackHTML(selectedTrack) : createDisabledStackHTML()}
+
+    ${selectedTrack ? createTrackActionHTML(selectedTrack) : ""}
+  `;
 }
 
 /* =========================================================
-   Project Status
-   ========================================================= */
+   4. 선택 Track 영역
+========================================================= */
 
-function getProjectStatusText() {
-  switch (TSState.app.projectStatus) {
-    case "empty":
-      return "Empty";
+function createSelectedTrackHTML(track) {
+  const region = window.TSStore.getRegion(track.regionId);
+  const regionName = region ? region.name : "No Region";
 
-    case "loaded":
-      return "Loaded";
+  return `
+    <div class="selected-track inspector-selected-track" data-track-id="${track.id}">
+      <strong>${escapeHTML(getShortTrackName(track.name))}</strong>
+      <span>Last updated → Region</span>
+    </div>
 
-    case "modified":
-      return "Modified";
+    <div class="track-info-panel">
+      <div class="section-title">Selected Track</div>
 
-    case "saved":
-      return "Saved";
+      <label class="inspector-label">Track Name</label>
+      <input
+        class="inspector-input"
+        data-action="rename-track"
+        data-track-id="${track.id}"
+        value="${escapeHTML(track.name)}"
+      />
 
-    case "need-recalculate":
-      return "Recalculate";
+      <label class="inspector-label">Track Type</label>
+      <select
+        class="inspector-select"
+        data-action="change-track-type"
+        data-track-id="${track.id}"
+      >
+        ${createTrackTypeOptions(track.type)}
+      </select>
 
-    default:
-      return "Unknown";
+      <label class="inspector-label">Region Assignment</label>
+      <select
+        class="inspector-select"
+        data-action="change-region"
+        data-track-id="${track.id}"
+      >
+        ${createRegionOptions(track.regionId)}
+      </select>
+
+      <div class="inspector-mini-grid">
+        <button
+          class="inspector-mini-btn"
+          data-action="toggle-visible"
+          data-track-id="${track.id}"
+        >
+          ${track.visible ? "Visible ON" : "Visible OFF"}
+        </button>
+
+        <button
+          class="inspector-mini-btn"
+          data-action="toggle-lock"
+          data-track-id="${track.id}"
+        >
+          ${track.locked ? "Locked" : "Unlocked"}
+        </button>
+      </div>
+
+      <div class="track-meta-box">
+        <div>Region: ${escapeHTML(regionName)}</div>
+        <div>Stack: ${track.analysisStack?.length || 0} steps</div>
+        <div>Updated: ${formatDateTime(track.updatedAt)}</div>
+      </div>
+    </div>
+  `;
+}
+
+function createEmptyTrackHTML() {
+  return `
+    <div class="selected-track">
+      <strong>No Track</strong>
+      <span>Upload CSV first</span>
+    </div>
+
+    <div class="result-box">
+      선택된 Track이 없습니다.<br />
+      Home에서 CSV 파일을 업로드하거나 Track Timeline에서 Track을 선택하세요.
+    </div>
+  `;
+}
+
+/* =========================================================
+   5. Analysis Stack 영역
+========================================================= */
+
+function createAnalysisStackHTML(track) {
+  const stackItems = track.analysisStack || [];
+
+  return `
+    <div class="stack-panel">
+      <div class="stack-head">
+        <span>Process Chain</span>
+        <span
+          class="stack-head-action"
+          data-action="add-empty-slot"
+          data-track-id="${track.id}"
+        >
+          + Empty Slot
+        </span>
+      </div>
+
+      <div class="stack-body">
+        ${stackItems.map((item, index) => createStackSlotHTML(item, index, track.id)).join("")}
+
+        ${createEmptyStackSlotHTML(track.id, stackItems.length)}
+      </div>
+    </div>
+  `;
+}
+
+function createStackSlotHTML(item, index, trackId) {
+  const stateClass = getStackStateClass(item.status);
+  const statusSymbol = getStackStatusSymbol(item.status);
+
+  return `
+    <div
+      class="stack-slot ${stateClass}"
+      data-action="open-stack-popup"
+      data-track-id="${trackId}"
+      data-stack-id="${item.id}"
+      data-analysis-type="${escapeHTML(item.analysisType)}"
+    >
+      <span class="slot-index">${String(index + 1).padStart(2, "0")}</span>
+      <span class="slot-name">
+        ${escapeHTML(createStackDisplayName(item))}
+      </span>
+      <span class="slot-state">${statusSymbol}</span>
+    </div>
+  `;
+}
+
+function createEmptyStackSlotHTML(trackId, index) {
+  return `
+    <div
+      class="stack-slot empty"
+      data-action="open-add-analysis-menu"
+      data-track-id="${trackId}"
+    >
+      <span class="slot-index">${String(index + 1).padStart(2, "0")}</span>
+      <span class="slot-name">Click to add analysis...</span>
+      <span class="slot-state">+</span>
+    </div>
+  `;
+}
+
+function createDisabledStackHTML() {
+  return `
+    <div class="stack-panel disabled">
+      <div class="stack-head">
+        <span>Process Chain</span>
+        <span>Disabled</span>
+      </div>
+      <div class="stack-body">
+        <div class="stack-slot empty">
+          <span class="slot-index">--</span>
+          <span class="slot-name">No selected track</span>
+          <span class="slot-state">×</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* =========================================================
+   6. Track Action 영역
+========================================================= */
+
+function createTrackActionHTML(track) {
+  return `
+    <div class="section-title">Track Actions</div>
+
+    <div class="inspector-action-grid">
+      <button
+        class="inspector-action-btn"
+        data-action="duplicate-track"
+        data-track-id="${track.id}"
+      >
+        Duplicate
+      </button>
+
+      <button
+        class="inspector-action-btn danger"
+        data-action="delete-track"
+        data-track-id="${track.id}"
+      >
+        Delete
+      </button>
+    </div>
+
+    <div class="section-title">Last Result</div>
+    ${createLastResultHTML(track)}
+  `;
+}
+
+function createLastResultHTML(track) {
+  if (!track.result) {
+    return `
+      <div class="result-box">
+        아직 실행된 분석 결과가 없습니다.
+      </div>
+    `;
+  }
+
+  const resultType = track.result.type || track.result.analysisType || track.type;
+
+  if (resultType === "Structure" && window.TSStructureAnalysis) {
+    return window.TSStructureAnalysis.createStructureResultHTML(track.result);
+  }
+
+  if (track.metrics) {
+    return createMetricsMiniHTML(track.metrics);
+  }
+
+  return `
+    <div class="result-box">
+      <strong>${escapeHTML(resultType)}</strong><br />
+      ${createResultSummaryText(track.result)}
+    </div>
+  `;
+}
+
+function createMetricsMiniHTML(metrics) {
+  const entries = Object.entries(metrics)
+    .filter(([, value]) => Number.isFinite(value))
+    .slice(0, 6);
+
+  if (entries.length === 0) {
+    return `<div class="result-box">평가지표 결과가 없습니다.</div>`;
+  }
+
+  return `
+    <div class="result-box">
+      <strong>Metrics</strong><br />
+      ${entries.map(([key, value]) => `${key}: ${formatNumber(value, 4)}`).join("<br />")}
+    </div>
+  `;
+}
+
+/* =========================================================
+   7. 이벤트 처리
+========================================================= */
+
+function handleInspectorClick(event) {
+  const target = event.target.closest("[data-action]");
+  if (!target) return;
+
+  const action = target.dataset.action;
+  const trackId = target.dataset.trackId;
+  const stackId = target.dataset.stackId;
+  const analysisType = target.dataset.analysisType;
+
+  if (action === "open-add-analysis-menu" || action === "add-empty-slot") {
+    openAddAnalysisMenu(target, trackId);
+    return;
+  }
+
+  if (action === "open-stack-popup") {
+    openStackParameterPopup(target, trackId, stackId, analysisType);
+    return;
+  }
+
+  if (action === "toggle-visible") {
+    window.TSStore.toggleTrackVisibility(trackId);
+    refreshWorkspace("TOGGLE_TRACK_VISIBLE");
+    return;
+  }
+
+  if (action === "toggle-lock") {
+    const track = window.TSStore.getTrack(trackId);
+    window.TSStore.lockTrack(trackId, !track.locked);
+    refreshWorkspace("TOGGLE_TRACK_LOCK");
+    return;
+  }
+
+  if (action === "duplicate-track") {
+    window.TSStore.duplicateTrack(trackId);
+    refreshWorkspace("DUPLICATE_TRACK");
+    return;
+  }
+
+  if (action === "delete-track") {
+    window.TSStore.removeTrack(trackId);
+    refreshWorkspace("DELETE_TRACK");
+    return;
   }
 }
 
-function getProjectStatusClass() {
-  switch (TSState.app.projectStatus) {
-    case "saved":
-      return "success";
+function handleInspectorChange(event) {
+  const target = event.target;
+  const action = target.dataset.action;
+  const trackId = target.dataset.trackId;
 
-    case "modified":
-    case "need-recalculate":
-      return "warning";
+  if (!action || !trackId) return;
 
-    case "loaded":
-      return "primary";
+  if (action === "change-region") {
+    window.TSStore.assignTrackToRegion(trackId, target.value);
+    refreshWorkspace("CHANGE_TRACK_REGION");
+    return;
+  }
 
-    default:
-      return "";
+  if (action === "change-track-type") {
+    window.TSStore.updateTrack(trackId, {
+      type: target.value,
+      color: window.TSStore
+        ? getTrackColorByType(target.value)
+        : "#8d8d8d"
+    });
+
+    refreshWorkspace("CHANGE_TRACK_TYPE");
+  }
+}
+
+function handleInspectorInput(event) {
+  const target = event.target;
+  const action = target.dataset.action;
+  const trackId = target.dataset.trackId;
+
+  if (!action || !trackId) return;
+
+  if (action === "rename-track") {
+    window.TSStore.updateTrack(trackId, {
+      name: target.value
+    });
+
+    if (window.TSTimelineUI) {
+      window.TSTimelineUI.renderTimeline();
+    }
+
+    if (window.TSLayout) {
+      window.TSLayout.saveWorkspaceState();
+    }
   }
 }
 
 /* =========================================================
-   연결 UI 새로고침
-   ========================================================= */
+   8. Popup 연결
+========================================================= */
 
-function refreshInspectorConnectedUI() {
+function openAddAnalysisMenu(anchorElement, trackId) {
+  const rect = anchorElement.getBoundingClientRect();
+
+  if (window.TSStore) {
+    window.TSStore.openAnalysisPopup({
+      mode: "add-analysis",
+      trackId,
+      stackId: null,
+      analysisType: null,
+      x: rect.left + 28,
+      y: rect.top + 4
+    });
+  }
+
+  if (window.TSPopupUI) {
+    window.TSPopupUI.renderPopup();
+  }
+}
+
+function openStackParameterPopup(anchorElement, trackId, stackId, analysisType) {
+  const rect = anchorElement.getBoundingClientRect();
+
+  if (window.TSStore) {
+    window.TSStore.openAnalysisPopup({
+      mode: "parameter",
+      trackId,
+      stackId,
+      analysisType,
+      x: rect.right + 14,
+      y: rect.top
+    });
+  }
+
+  if (window.TSPopupUI) {
+    window.TSPopupUI.renderPopup();
+  }
+}
+
+/* =========================================================
+   9. Option 생성
+========================================================= */
+
+function createTrackTypeOptions(selectedType) {
+  const types = window.TSStore?.constants?.TS_TRACK_TYPES || {};
+
+  return Object.values(types)
+    .map(type => {
+      const selected = type === selectedType ? "selected" : "";
+      return `<option value="${escapeHTML(type)}" ${selected}>${escapeHTML(type)}</option>`;
+    })
+    .join("");
+}
+
+function createRegionOptions(selectedRegionId) {
+  const regions = window.TSState?.regions || [];
+
+  return regions
+    .map(region => {
+      const selected = region.id === selectedRegionId ? "selected" : "";
+      return `<option value="${region.id}" ${selected}>${escapeHTML(region.name)}</option>`;
+    })
+    .join("");
+}
+
+/* =========================================================
+   10. Stack 표시명
+========================================================= */
+
+function createStackDisplayName(item) {
+  if (!item) return "Unknown";
+
+  const type = item.analysisType;
+  const params = item.params || {};
+
+  if (type === "Missing") {
+    return `Missing · ${params.method || "linear"}`;
+  }
+
+  if (type === "Outlier") {
+    return `Outlier · ${params.method || "hampel"}`;
+  }
+
+  if (type === "Resampling") {
+    return `Resampling · ${params.frequency || "auto"}`;
+  }
+
+  if (type === "Smoothing") {
+    return `Smoothing · ${params.method || "moving-average"}`;
+  }
+
+  if (type === "Decomposition") {
+    return `Decomposition · ${params.method || "STL"}`;
+  }
+
+  if (type === "Stationarity") {
+    return `Stationarity · ${params.test || "ADF"}`;
+  }
+
+  if (type === "Forecast") {
+    return `Forecast · ${params.model || "exponential-smoothing"}`;
+  }
+
+  if (type === "Validation") {
+    return `Validation · ${params.method || "train-test-split"}`;
+  }
+
+  if (type === "Metrics") {
+    return `Metrics · ${(params.metrics || ["MAE", "RMSE"]).slice(0, 2).join("/")}`;
+  }
+
+  if (type === "Auto Analysis") {
+    return "Auto Analysis · full";
+  }
+
+  return type;
+}
+
+/* =========================================================
+   11. 상태 표시
+========================================================= */
+
+function getStackStateClass(status) {
+  const statusMap = {
+    ready: "ready",
+    running: "running",
+    done: "done",
+    error: "error"
+  };
+
+  return statusMap[status] || "ready";
+}
+
+function getStackStatusSymbol(status) {
+  const symbolMap = {
+    ready: "○",
+    running: "…",
+    done: "●",
+    error: "!"
+  };
+
+  return symbolMap[status] || "○";
+}
+
+/* =========================================================
+   12. 보조 함수
+========================================================= */
+
+function refreshWorkspace(actionName) {
   renderInspector();
 
-  if (window.TSTimelineUI) {
-    TSTimelineUI.renderTimeline();
-  }
-
-  if (window.TSRegionsUI) {
-    TSRegionsUI.renderRegions();
-  }
-
-  if (window.TSChartInteraction) {
-    TSChartInteraction.bindAllChartInteractions();
+  if (window.TSLayout) {
+    window.TSLayout.dispatchStateChange(actionName);
+  } else {
+    if (window.TSTimelineUI) window.TSTimelineUI.renderTimeline();
+    if (window.TSRegionUI) window.TSRegionUI.renderRegions();
   }
 }
 
-/* =========================================================
-   HTML Escape
-   ========================================================= */
+function getShortTrackName(name) {
+  if (!name) return "Track";
 
-function escapeInspectorHTML(value) {
+  const text = String(name).replace(/\s+/g, " ").trim();
+
+  if (text.length <= 18) return text;
+
+  return `${text.slice(0, 18)}…`;
+}
+
+function getTrackColorByType(type) {
+  const map = {
+    "Original Data": "#8d8d8d",
+    "Preprocessed Data": "#76a878",
+    "Feature Data": "#9dbb9b",
+    "Forecast Data": "#9b8db7",
+    "Residual Data": "#b49a72",
+    "Evaluation Result": "#5b8fd6",
+    "Compare Result": "#afa4c5",
+    "Auto Analysis Result": "#b9a17d"
+  };
+
+  return map[type] || "#8d8d8d";
+}
+
+function createResultSummaryText(result) {
+  if (!result) return "결과 없음";
+
+  if (Array.isArray(result.messages)) {
+    return result.messages.map(escapeHTML).join("<br />");
+  }
+
+  if (result.summary) {
+    return escapeHTML(JSON.stringify(result.summary, null, 2)).replace(/\n/g, "<br />");
+  }
+
+  return escapeHTML(JSON.stringify(result, null, 2)).replace(/\n/g, "<br />");
+}
+
+function formatDateTime(value) {
+  if (!value) return "-";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "-";
+
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hour = String(date.getHours()).padStart(2, "0");
+  const minute = String(date.getMinutes()).padStart(2, "0");
+
+  return `${month}/${day} ${hour}:${minute}`;
+}
+
+function formatNumber(value, digits = 3) {
+  if (!Number.isFinite(value)) return "-";
+  return Number(value).toFixed(digits);
+}
+
+function escapeHTML(value) {
   return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 /* =========================================================
-   전역 노출
-   ========================================================= */
+   13. 외부 접근용 객체
+========================================================= */
 
 window.TSInspectorUI = {
+  initInspector,
   renderInspector,
 
-  createEmptyInspectorHTML,
-  createSelectedTrackInspectorHTML,
+  createSelectedTrackHTML,
+  createAnalysisStackHTML,
+  createStackSlotHTML,
+  createEmptyStackSlotHTML,
 
-  createTrackTypeOptionsHTML,
-  createRegionOptionsHTML,
-  createProcessButtonsHTML,
-  createTrackSummaryHTML,
-
-  bindInspectorEvents,
-
-  handleInspectorToggle,
-  handleTrackNameChange,
-  handleTrackColorChange,
-  handleTrackTypeChange,
-  handleTrackRegionChange,
-
-  handleInspectorActionClick,
-  deleteSelectedTrack,
-
-  openProcessPopupFromInspector,
-  getProcessNameByType,
-  getDefaultProcessParameters,
-
-  runAutoAnalysisFromInspector,
-
-  askAIFromInspector,
-  createAIQuestionFromTrack,
-
-  getProjectStatusText,
-  getProjectStatusClass,
-
-  refreshInspectorConnectedUI,
+  openAddAnalysisMenu,
+  openStackParameterPopup
 };
+
+/* =========================================================
+   14. 자동 초기화
+========================================================= */
+
+document.addEventListener("DOMContentLoaded", () => {
+  initInspector();
+});

@@ -1,414 +1,510 @@
 /* =========================================================
    TS Navigator - sampleData.js
-   샘플 시계열 데이터 생성 유틸
-   ========================================================= */
-if (!window.TSDateUtils) {
-  throw new Error(
-    "TSDateUtils is not defined. dateUtils.js를 sampleData.js보다 먼저 불러와야 합니다."
+   ---------------------------------------------------------
+   역할
+   1. 시계열 샘플 데이터 생성
+   2. 결측치 / 이상치 / 추세 / 계절성 포함 데이터 생성
+   3. 테스트용 CSV 생성
+   4. 다양한 frequency 데이터 생성
+========================================================= */
+
+/* =========================================================
+   1. 기본 설정
+========================================================= */
+
+const TSSamplePresets = {
+  SIMPLE: "simple",
+  TREND: "trend",
+  SEASONAL: "seasonal",
+  TREND_SEASONAL: "trend-seasonal",
+  MISSING: "missing",
+  OUTLIER: "outlier",
+  FULL: "full"
+};
+
+const TSSampleFrequency = {
+  DAILY: "D",
+  WEEKLY: "W",
+  MONTHLY: "M",
+  HOURLY: "H"
+};
+
+/* =========================================================
+   2. 날짜 시계열 생성
+========================================================= */
+
+function generateDateSeries({
+  startDate = "2024-01-01",
+  periods = 30,
+  frequency = TSSampleFrequency.DAILY
+} = {}) {
+  if (!window.TSDateUtils) {
+    throw new Error("TSDateUtils가 로드되지 않았습니다.");
+  }
+
+  return window.TSDateUtils.createDateRangeByPeriods(
+    startDate,
+    periods,
+    frequency
   );
 }
 
-const TSDateUtils = window.TSDateUtils;
 /* =========================================================
-   기본 랜덤 함수
-   ========================================================= */
-
-function randomBetween(min, max) {
-  return Math.random() * (max - min) + min;
-}
-
-function randomInt(min, max) {
-  return Math.floor(randomBetween(min, max + 1));
-}
+   3. 기본 노이즈 생성
+========================================================= */
 
 function randomNoise(scale = 1) {
   return (Math.random() - 0.5) * scale;
 }
 
+function randomBetween(min, max) {
+  return min + Math.random() * (max - min);
+}
+
 /* =========================================================
-   날짜 생성
-   ========================================================= */
+   4. 단순 시계열
+========================================================= */
 
-function generateDateSeries({
-  startDate = "2024-01-01",
-  length = 100,
-  frequency = "daily",
-}) {
-  const dates = [];
+function generateSimpleSeries({
+  periods = 30,
+  baseValue = 100,
+  noiseScale = 5
+} = {}) {
+  const values = [];
 
-  let current = new Date(startDate);
+  for (let i = 0; i < periods; i += 1) {
+    values.push(baseValue + randomNoise(noiseScale));
+  }
 
-  for (let i = 0; i < length; i += 1) {
-    dates.push(current.toISOString());
+  return values;
+}
 
-    switch (frequency) {
-      case "second":
-        current = TSDateUtils.addSeconds(current, 1);
-        break;
+/* =========================================================
+   5. 추세 시계열
+========================================================= */
 
-      case "minute":
-        current = TSDateUtils.addMinutes(current, 1);
-        break;
+function generateTrendSeries({
+  periods = 50,
+  baseValue = 100,
+  slope = 2,
+  noiseScale = 5
+} = {}) {
+  const values = [];
 
-      case "hour":
-        current = TSDateUtils.addHours(current, 1);
-        break;
+  for (let i = 0; i < periods; i += 1) {
+    const trend = baseValue + slope * i;
+    values.push(trend + randomNoise(noiseScale));
+  }
 
-      case "weekly":
-        current = TSDateUtils.addWeeks(current, 1);
-        break;
+  return values;
+}
 
-      case "monthly":
-        current = TSDateUtils.addMonths(current, 1);
-        break;
+/* =========================================================
+   6. 계절성 시계열
+========================================================= */
 
-      case "yearly":
-        current = TSDateUtils.addYears(current, 1);
-        break;
+function generateSeasonalSeries({
+  periods = 60,
+  baseValue = 100,
+  seasonalAmplitude = 20,
+  seasonalPeriod = 12,
+  noiseScale = 3
+} = {}) {
+  const values = [];
 
-      case "daily":
-      default:
-        current = TSDateUtils.addDays(current, 1);
-        break;
+  for (let i = 0; i < periods; i += 1) {
+    const seasonal =
+      seasonalAmplitude *
+      Math.sin((2 * Math.PI * i) / seasonalPeriod);
+
+    values.push(baseValue + seasonal + randomNoise(noiseScale));
+  }
+
+  return values;
+}
+
+/* =========================================================
+   7. 추세 + 계절성
+========================================================= */
+
+function generateTrendSeasonalSeries({
+  periods = 72,
+  baseValue = 100,
+  slope = 1.5,
+  seasonalAmplitude = 15,
+  seasonalPeriod = 12,
+  noiseScale = 4
+} = {}) {
+  const values = [];
+
+  for (let i = 0; i < periods; i += 1) {
+    const trend = slope * i;
+
+    const seasonal =
+      seasonalAmplitude *
+      Math.sin((2 * Math.PI * i) / seasonalPeriod);
+
+    values.push(
+      baseValue +
+      trend +
+      seasonal +
+      randomNoise(noiseScale)
+    );
+  }
+
+  return values;
+}
+
+/* =========================================================
+   8. 결측치 삽입
+========================================================= */
+
+function insertMissingValues(
+  values,
+  missingRatio = 0.1
+) {
+  const result = [...values];
+
+  const missingCount = Math.max(
+    1,
+    Math.floor(values.length * missingRatio)
+  );
+
+  const usedIndices = new Set();
+
+  while (usedIndices.size < missingCount) {
+    const index = Math.floor(Math.random() * values.length);
+
+    if (!usedIndices.has(index)) {
+      usedIndices.add(index);
+      result[index] = "";
     }
   }
 
-  return dates;
+  return result;
 }
 
 /* =========================================================
-   Trend 생성
-   ========================================================= */
+   9. 이상치 삽입
+========================================================= */
 
-function generateTrend({
-  length = 100,
-  slope = 1,
-  intercept = 0,
-}) {
-  return Array.from({ length }, (_, index) => {
-    return intercept + slope * index;
-  });
+function insertOutliers(
+  values,
+  outlierRatio = 0.05,
+  scale = 3
+) {
+  const result = [...values];
+
+  const outlierCount = Math.max(
+    1,
+    Math.floor(values.length * outlierRatio)
+  );
+
+  const avg = window.TSMathUtils
+    ? window.TSMathUtils.mean(values)
+    : 100;
+
+  const std = window.TSMathUtils
+    ? window.TSMathUtils.standardDeviation(values)
+    : 10;
+
+  const usedIndices = new Set();
+
+  while (usedIndices.size < outlierCount) {
+    const index = Math.floor(Math.random() * values.length);
+
+    if (!usedIndices.has(index)) {
+      usedIndices.add(index);
+
+      const direction = Math.random() > 0.5 ? 1 : -1;
+
+      result[index] =
+        avg + direction * scale * std;
+    }
+  }
+
+  return result;
 }
 
 /* =========================================================
-   Seasonal 생성
-   ========================================================= */
+   10. 누락 timestamp 삽입
+========================================================= */
 
-function generateSeasonality({
-  length = 100,
-  amplitude = 10,
-  period = 12,
-}) {
-  return Array.from({ length }, (_, index) => {
-    return (
-      amplitude *
-      Math.sin((2 * Math.PI * index) / period)
-    );
-  });
-}
+function removeRandomDates(
+  dates,
+  values,
+  missingRatio = 0.1
+) {
+  const resultDates = [];
+  const resultValues = [];
 
-/* =========================================================
-   Noise 생성
-   ========================================================= */
-
-function generateNoise({
-  length = 100,
-  scale = 5,
-}) {
-  return Array.from({ length }, () => {
-    return randomNoise(scale);
-  });
-}
-
-/* =========================================================
-   단순 시계열 생성
-   ========================================================= */
-
-function generateSimpleSeries({
-  length = 100,
-  startDate = "2024-01-01",
-  frequency = "daily",
-
-  trendSlope = 0.5,
-  trendIntercept = 50,
-
-  seasonalAmplitude = 10,
-  seasonalPeriod = 12,
-
-  noiseScale = 5,
-}) {
-  const dates = generateDateSeries({
-    startDate,
-    length,
-    frequency,
-  });
-
-  const trend = generateTrend({
-    length,
-    slope: trendSlope,
-    intercept: trendIntercept,
-  });
-
-  const seasonal = generateSeasonality({
-    length,
-    amplitude: seasonalAmplitude,
-    period: seasonalPeriod,
-  });
-
-  const noise = generateNoise({
-    length,
-    scale: noiseScale,
-  });
-
-  const values = Array.from({ length }, (_, index) => {
-    return trend[index] + seasonal[index] + noise[index];
-  });
+  for (let i = 0; i < dates.length; i += 1) {
+    if (Math.random() > missingRatio) {
+      resultDates.push(dates[i]);
+      resultValues.push(values[i]);
+    }
+  }
 
   return {
-    dates,
-    values,
+    dates: resultDates,
+    values: resultValues
   };
 }
 
 /* =========================================================
-   결측치 추가
-   ========================================================= */
+   11. row 생성
+========================================================= */
 
-function injectMissingValues(values = [], missingRatio = 0.1) {
-  const result = [...values];
-
-  const missingCount = Math.floor(values.length * missingRatio);
-
-  for (let i = 0; i < missingCount; i += 1) {
-    const randomIndex = randomInt(0, values.length - 1);
-
-    result[randomIndex] = null;
-  }
-
-  return result;
-}
-
-/* =========================================================
-   이상치 추가
-   ========================================================= */
-
-function injectOutliers({
-  values = [],
-  outlierRatio = 0.05,
-  scale = 3,
+function createRows({
+  dates,
+  values,
+  datetimeColumn = "date",
+  targetColumn = "value"
 }) {
-  const result = [...values];
-
-  const outlierCount = Math.floor(values.length * outlierRatio);
-
-  const sd = TSMathUtils.standardDeviation(values, false) || 10;
-
-  for (let i = 0; i < outlierCount; i += 1) {
-    const randomIndex = randomInt(0, values.length - 1);
-
-    if (result[randomIndex] === null) continue;
-
-    const direction = Math.random() > 0.5 ? 1 : -1;
-
-    result[randomIndex] += direction * sd * scale;
-  }
-
-  return result;
-}
-
-/* =========================================================
-   중복 Timestamp 추가
-   ========================================================= */
-
-function injectDuplicateTimestamps(dates = [], ratio = 0.03) {
-  const result = [...dates];
-
-  const duplicateCount = Math.floor(dates.length * ratio);
-
-  for (let i = 0; i < duplicateCount; i += 1) {
-    const randomIndex = randomInt(1, dates.length - 1);
-
-    result[randomIndex] = result[randomIndex - 1];
-  }
-
-  return result;
-}
-
-/* =========================================================
-   실제 CSV 형태 데이터 생성
-   ========================================================= */
-
-function createSampleCSVRows({
-  length = 100,
-  startDate = "2024-01-01",
-  frequency = "daily",
-
-  missingRatio = 0.08,
-  outlierRatio = 0.05,
-  duplicateRatio = 0.03,
-}) {
-  const series = generateSimpleSeries({
-    length,
-    startDate,
-    frequency,
-  });
-
-  let values = [...series.values];
-  let dates = [...series.dates];
-
-  values = injectMissingValues(values, missingRatio);
-
-  values = injectOutliers({
-    values,
-    outlierRatio,
-  });
-
-  dates = injectDuplicateTimestamps(dates, duplicateRatio);
-
   return dates.map((date, index) => {
     return {
-      datetime: date,
-      value:
-        values[index] !== null
-          ? TSMathUtils.roundNumber(values[index], 3)
-          : null,
+      [datetimeColumn]: window.TSDateUtils
+        ? window.TSDateUtils.formatDate(date, "D")
+        : String(date),
+
+      [targetColumn]:
+        typeof values[index] === "number"
+          ? Number(values[index].toFixed(3))
+          : values[index]
     };
   });
 }
 
 /* =========================================================
-   CSV 문자열 생성
-   ========================================================= */
+   12. FULL 샘플 데이터 생성
+========================================================= */
 
-function createSampleCSVText(options = {}) {
-  const rows = createSampleCSVRows(options);
+function generateFullSampleDataset({
+  periods = 72,
+  frequency = TSSampleFrequency.DAILY
+} = {}) {
+  const dates = generateDateSeries({
+    startDate: "2024-01-01",
+    periods,
+    frequency
+  });
 
-  const columns = ["datetime", "value"];
+  let values = generateTrendSeasonalSeries({
+    periods,
+    baseValue: 100,
+    slope: 0.8,
+    seasonalAmplitude: 20,
+    seasonalPeriod: 12,
+    noiseScale: 5
+  });
 
-  return TSCSVUtils.exportRowsToCSV(rows, columns);
-}
+  values = insertMissingValues(values, 0.08);
+  values = insertOutliers(values, 0.05, 4);
 
-/* =========================================================
-   업로드용 샘플 데이터 객체
-   ========================================================= */
-
-function createSampleDataset(options = {}) {
-  const rows = createSampleCSVRows(options);
-
-  const columns = ["datetime", "value"];
-
-  const summary = TSCSVUtils.summarizeCSVData(
-    rows,
-    columns,
-    "datetime"
+  const filtered = removeRandomDates(
+    dates,
+    values,
+    0.05
   );
 
-  return {
-    fileName: "sample_timeseries.csv",
-    columns,
-    rows,
-    datetimeColumn: "datetime",
-    targetColumn: "value",
-    frequency: options.frequency || "daily",
-    summary,
-  };
+  return createRows({
+    dates: filtered.dates,
+    values: filtered.values,
+    datetimeColumn: "date",
+    targetColumn: "demand"
+  });
 }
 
 /* =========================================================
-   트랙용 샘플 데이터
-   ========================================================= */
+   13. preset 기반 생성
+========================================================= */
 
-function createSampleTrackData(options = {}) {
-  const dataset = createSampleDataset(options);
+function generatePresetDataset(
+  preset = TSSamplePresets.SIMPLE,
+  options = {}
+) {
+  const periods = options.periods || 50;
 
-  const series = TSCSVUtils.rowsToTimeSeries(
-    dataset.rows,
-    dataset.datetimeColumn,
-    dataset.targetColumn
+  const dates = generateDateSeries({
+    startDate: options.startDate || "2024-01-01",
+    periods,
+    frequency:
+      options.frequency ||
+      TSSampleFrequency.DAILY
+  });
+
+  let values = [];
+
+  switch (preset) {
+    case TSSamplePresets.TREND:
+      values = generateTrendSeries({
+        periods
+      });
+      break;
+
+    case TSSamplePresets.SEASONAL:
+      values = generateSeasonalSeries({
+        periods
+      });
+      break;
+
+    case TSSamplePresets.TREND_SEASONAL:
+      values = generateTrendSeasonalSeries({
+        periods
+      });
+      break;
+
+    case TSSamplePresets.MISSING:
+      values = generateTrendSeasonalSeries({
+        periods
+      });
+
+      values = insertMissingValues(
+        values,
+        0.15
+      );
+      break;
+
+    case TSSamplePresets.OUTLIER:
+      values = generateTrendSeries({
+        periods
+      });
+
+      values = insertOutliers(
+        values,
+        0.08,
+        5
+      );
+      break;
+
+    case TSSamplePresets.FULL:
+      return generateFullSampleDataset({
+        periods
+      });
+
+    case TSSamplePresets.SIMPLE:
+    default:
+      values = generateSimpleSeries({
+        periods
+      });
+      break;
+  }
+
+  return createRows({
+    dates,
+    values,
+    datetimeColumn:
+      options.datetimeColumn || "date",
+    targetColumn:
+      options.targetColumn || "value"
+  });
+}
+
+/* =========================================================
+   14. CSV 문자열 생성
+========================================================= */
+
+function createSampleCSVRows(
+  preset = TSSamplePresets.FULL,
+  options = {}
+) {
+  return generatePresetDataset(
+    preset,
+    options
+  );
+}
+
+function createSampleCSVText(
+  preset = TSSamplePresets.FULL,
+  options = {}
+) {
+  const rows = createSampleCSVRows(
+    preset,
+    options
   );
 
-  const { x, y } = TSCSVUtils.timeSeriesToXY(series);
+  if (!window.TSCSVUtils) {
+    throw new Error("TSCSVUtils가 로드되지 않았습니다.");
+  }
 
-  return {
-    dataset,
-    x,
-    y,
-  };
+  return window.TSCSVUtils.rowsToCSV(rows);
 }
 
 /* =========================================================
-   자동 분석 테스트용 데이터
-   ========================================================= */
+   15. dataset 객체 생성
+========================================================= */
 
-function createAutoAnalysisDemoData() {
-  return createSampleTrackData({
-    length: 180,
-    frequency: "daily",
-    missingRatio: 0.12,
-    outlierRatio: 0.08,
-    duplicateRatio: 0.04,
-  });
+function createSampleDataset(
+  preset = TSSamplePresets.FULL,
+  options = {}
+) {
+  if (!window.TSCSVUtils) {
+    throw new Error("TSCSVUtils가 로드되지 않았습니다.");
+  }
+
+  const csvText = createSampleCSVText(
+    preset,
+    options
+  );
+
+  return window.TSCSVUtils.parseCSV(
+    csvText,
+    {
+      fileName: `sample_${preset}.csv`
+    }
+  );
 }
 
 /* =========================================================
-   다양한 패턴 샘플
-   ========================================================= */
+   16. 다운로드
+========================================================= */
 
-function createTrendOnlyData() {
-  return createSampleTrackData({
-    length: 120,
-    frequency: "daily",
-    missingRatio: 0,
-    outlierRatio: 0,
-  });
-}
+function downloadSampleCSV(
+  preset = TSSamplePresets.FULL,
+  options = {}
+) {
+  const rows = createSampleCSVRows(
+    preset,
+    options
+  );
 
-function createSeasonalData() {
-  return createSampleTrackData({
-    length: 240,
-    frequency: "daily",
-    missingRatio: 0.03,
-    outlierRatio: 0.02,
-  });
-}
+  if (!window.TSCSVUtils) {
+    throw new Error("TSCSVUtils가 로드되지 않았습니다.");
+  }
 
-function createNoisyData() {
-  return createSampleTrackData({
-    length: 150,
-    frequency: "daily",
-    missingRatio: 0.05,
-    outlierRatio: 0.1,
-  });
+  window.TSCSVUtils.downloadCSV(
+    rows,
+    `sample_${preset}.csv`
+  );
 }
 
 /* =========================================================
-   전역 노출
-   ========================================================= */
+   17. 외부 접근용 객체
+========================================================= */
 
 window.TSSampleData = {
-  randomBetween,
-  randomInt,
-  randomNoise,
+  presets: TSSamplePresets,
+  frequency: TSSampleFrequency,
 
   generateDateSeries,
-  generateTrend,
-  generateSeasonality,
-  generateNoise,
 
   generateSimpleSeries,
+  generateTrendSeries,
+  generateSeasonalSeries,
+  generateTrendSeasonalSeries,
 
-  injectMissingValues,
-  injectOutliers,
-  injectDuplicateTimestamps,
+  insertMissingValues,
+  insertOutliers,
+  removeRandomDates,
+
+  createRows,
+
+  generateFullSampleDataset,
+  generatePresetDataset,
 
   createSampleCSVRows,
   createSampleCSVText,
   createSampleDataset,
-  createSampleTrackData,
 
-  createAutoAnalysisDemoData,
-
-  createTrendOnlyData,
-  createSeasonalData,
-  createNoisyData,
+  downloadSampleCSV
 };

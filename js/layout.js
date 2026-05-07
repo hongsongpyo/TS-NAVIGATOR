@@ -1,299 +1,469 @@
 /* =========================================================
    TS Navigator - layout.js
-   Workspace 3분할 레이아웃
-   Inspector open/close: 18/10/72, 3/10/87 비율 반영
-   ========================================================= */
+   ---------------------------------------------------------
+   역할
+   1. workspace.html 전체 레이아웃 초기화
+   2. sessionStorage에 저장된 데이터 / 상태 복원
+   3. Inspector 접기 / 펼치기
+   4. Track Timeline / Visualization Region 비율 유지
+   5. Home 이동, Workspace 상태 저장
+   6. 각 UI 모듈 렌더링 호출
+========================================================= */
 
 /* =========================================================
-   레이아웃 상수
-   ========================================================= */
+   1. DOM 요소 참조
+========================================================= */
 
-const TSLayoutConfig = {
-  open: {
-    inspector: 18,
-    timeline: 10,
-    region: 72,
+let workspaceRoot = null;
+let mainLayout = null;
+
+let homeBtn = null;
+let collapseRail = null;
+let inspectorPanel = null;
+let timelinePanel = null;
+let visualizationPanel = null;
+
+let workspaceTitle = null;
+let statusDot = null;
+let statusText = null;
+
+/* =========================================================
+   2. Layout 상태
+========================================================= */
+
+const TSLayoutState = {
+  inspectorCollapsed: false,
+
+  ratio: {
+    collapseRail: 26,
+    inspector: 170,
+    timeline: 220,
+    visualization: "1fr"
   },
 
-  closed: {
-    inspector: 3,
-    timeline: 10,
-    region: 87,
-  },
-
-  minWidth: {
-    inspectorOpen: 220,
-    inspectorClosed: 42,
-    timeline: 120,
-    region: 480,
-  },
+  autosaveKey: "TS_NAVIGATOR_STATE",
+  datasetKey: "TS_NAVIGATOR_DATASET"
 };
 
 /* =========================================================
-   Workspace Layout 적용
-   ========================================================= */
+   3. 초기화
+========================================================= */
 
-function applyWorkspaceLayout() {
-  const workspace = document.getElementById("workspaceLayout");
-  const inspector = document.getElementById("trackInspector");
-  const timeline = document.getElementById("trackTimeline");
-  const regions = document.getElementById("visualizationRegions");
+function initLayout() {
+  cacheLayoutElements();
+  restoreWorkspaceState();
+  bindLayoutEvents();
 
-  if (!workspace || !inspector || !timeline || !regions) return;
+  renderWorkspaceStatus();
+  renderAllWorkspaceUI();
 
-  const ratio = TSState.app.inspectorOpen
-    ? TSLayoutConfig.open
-    : TSLayoutConfig.closed;
+  saveWorkspaceState();
+}
 
-  workspace.style.gridTemplateColumns = `${ratio.inspector}% ${ratio.timeline}% ${ratio.region}%`;
+function cacheLayoutElements() {
+  workspaceRoot = document.querySelector(".workspace");
+  mainLayout = document.querySelector(".main");
 
-  workspace.dataset.inspector = TSState.app.inspectorOpen ? "open" : "closed";
+  homeBtn = document.querySelector(".home-btn");
+  collapseRail = document.querySelector(".collapse-rail");
+  inspectorPanel = document.querySelector(".inspector");
+  timelinePanel = document.querySelector(".timeline");
+  visualizationPanel = document.querySelector(".visualization");
 
-  inspector.classList.toggle("closed", !TSState.app.inspectorOpen);
-  timeline.classList.toggle("inspector-closed", !TSState.app.inspectorOpen);
-  regions.classList.toggle("inspector-closed", !TSState.app.inspectorOpen);
+  workspaceTitle = document.querySelector(".title");
+  statusDot = document.querySelector(".status-dot");
+  statusText = document.querySelector(".status-text");
+}
 
-  updateInspectorCollapsedContent();
-  resizeChartsAfterLayoutChange();
+function bindLayoutEvents() {
+  if (homeBtn) {
+    homeBtn.addEventListener("click", goHome);
+  }
+
+  if (collapseRail) {
+    collapseRail.addEventListener("click", toggleInspector);
+  }
+
+  window.addEventListener("beforeunload", saveWorkspaceState);
+
+  document.addEventListener("keydown", handleWorkspaceShortcut);
 }
 
 /* =========================================================
-   Inspector 접힘 상태 표시
-   ========================================================= */
+   4. Workspace 상태 복원
+========================================================= */
 
-function updateInspectorCollapsedContent() {
-  const inspector = document.getElementById("trackInspector");
+function restoreWorkspaceState() {
+  restoreProjectStateFromSession();
 
-  if (!inspector) return;
-
-  if (TSState.app.inspectorOpen) {
-    inspector.dataset.collapsedLabel = "";
+  if (!window.TSState || !window.TSStore) {
+    console.warn("TSState 또는 TSStore가 없습니다. state.js 로드 순서를 확인하세요.");
     return;
   }
 
-  inspector.dataset.collapsedLabel = "TRACK INSPECTOR";
+  const hasDataset =
+    window.TSState.dataset &&
+    window.TSState.dataset.isUploaded &&
+    Array.isArray(window.TSState.dataset.rows) &&
+    window.TSState.dataset.rows.length > 0;
+
+  if (!hasDataset) {
+    restoreDatasetOnlyFromSession();
+  }
+
+  ensureDefaultWorkspaceObjects();
 }
 
-/* =========================================================
-   Inspector Toggle
-   ========================================================= */
+function restoreProjectStateFromSession() {
+  const savedStateText = sessionStorage.getItem(TSLayoutState.autosaveKey);
 
-function toggleInspectorLayout() {
-  TSStore.toggleInspector();
+  if (!savedStateText || !window.TSState) return;
 
-  applyWorkspaceLayout();
+  try {
+    const savedState = JSON.parse(savedStateText);
 
-  if (window.TSInspectorUI) {
-    TSInspectorUI.renderInspector();
+    Object.keys(savedState).forEach(key => {
+      window.TSState[key] = savedState[key];
+    });
+  } catch (error) {
+    console.warn("Workspace 상태를 복원하지 못했습니다.", error);
+    sessionStorage.removeItem(TSLayoutState.autosaveKey);
   }
 }
 
-function openInspectorLayout() {
-  TSStore.setInspectorOpen(true);
+function restoreDatasetOnlyFromSession() {
+  const savedDatasetText = sessionStorage.getItem(TSLayoutState.datasetKey);
 
-  applyWorkspaceLayout();
+  if (!savedDatasetText || !window.TSStore) return;
 
-  if (window.TSInspectorUI) {
-    TSInspectorUI.renderInspector();
-  }
-}
+  try {
+    const dataset = JSON.parse(savedDatasetText);
 
-function closeInspectorLayout() {
-  TSStore.setInspectorOpen(false);
+    window.TSStore.initProject();
 
-  applyWorkspaceLayout();
+    window.TSStore.setDataset({
+      fileName: dataset.fileName,
+      rawText: dataset.rawText || "",
+      rows: dataset.rows || [],
+      columns: dataset.columns || [],
+      datetimeColumn: dataset.datetimeColumn || null,
+      targetColumn: dataset.targetColumn || null,
+      frequency: dataset.frequency || null,
+      structureSummary: dataset.structureSummary || null
+    });
 
-  if (window.TSInspectorUI) {
-    TSInspectorUI.renderInspector();
-  }
-}
+    const originalTrack = window.TSStore.createOriginalTrack(dataset.rows || []);
 
-/* =========================================================
-   Workspace 높이 계산
-   ========================================================= */
-
-function updateWorkspaceHeight() {
-  const header = document.querySelector(".workspace-header");
-  const workspace = document.getElementById("workspaceLayout");
-
-  if (!workspace) return;
-
-  const headerHeight = header ? header.offsetHeight : 64;
-
-  workspace.style.height = `calc(100vh - ${headerHeight}px)`;
-}
-
-/* =========================================================
-   Resize 대응
-   ========================================================= */
-
-function bindLayoutResize() {
-  window.addEventListener("resize", handleLayoutResize);
-}
-
-function handleLayoutResize() {
-  updateWorkspaceHeight();
-  applyResponsiveLayout();
-  resizeChartsAfterLayoutChange();
-}
-
-function applyResponsiveLayout() {
-  const workspace = document.getElementById("workspaceLayout");
-
-  if (!workspace) return;
-
-  const width = window.innerWidth;
-
-  if (width < 900) {
-    workspace.classList.add("compact-layout");
-  } else {
-    workspace.classList.remove("compact-layout");
-  }
-}
-
-/* =========================================================
-   Chart Resize
-   ========================================================= */
-
-function resizeChartsAfterLayoutChange() {
-  window.setTimeout(() => {
-    if (window.TSChartCore) {
-      TSChartCore.resizeAllPlots();
-    }
-  }, 250);
-}
-
-/* =========================================================
-   Region Layout 보조
-   ========================================================= */
-
-function setRegionLayoutMode(mode = "auto") {
-  const grid = document.getElementById("regionsGrid");
-
-  if (!grid) return;
-
-  grid.dataset.layoutMode = mode;
-
-  if (mode === "vertical") {
-    grid.classList.add("vertical-layout");
-    grid.classList.remove("horizontal-layout");
-  } else if (mode === "horizontal") {
-    grid.classList.add("horizontal-layout");
-    grid.classList.remove("vertical-layout");
-  } else {
-    grid.classList.remove("vertical-layout");
-    grid.classList.remove("horizontal-layout");
-  }
-
-  resizeChartsAfterLayoutChange();
-}
-
-function toggleRegionLayoutMode() {
-  const grid = document.getElementById("regionsGrid");
-
-  if (!grid) return;
-
-  const current = grid.dataset.layoutMode || "auto";
-
-  if (current === "auto") {
-    setRegionLayoutMode("horizontal");
-  } else if (current === "horizontal") {
-    setRegionLayoutMode("vertical");
-  } else {
-    setRegionLayoutMode("auto");
-  }
-}
-
-/* =========================================================
-   Workspace 초기화
-   ========================================================= */
-
-function initializeWorkspaceLayout() {
-  updateWorkspaceHeight();
-  applyResponsiveLayout();
-  applyWorkspaceLayout();
-  bindLayoutResize();
-  bindLayoutKeyboardShortcuts();
-}
-
-/* =========================================================
-   Keyboard Shortcut
-   ========================================================= */
-
-function bindLayoutKeyboardShortcuts() {
-  document.addEventListener("keydown", (event) => {
-    const isInput =
-      event.target.tagName === "INPUT" ||
-      event.target.tagName === "TEXTAREA" ||
-      event.target.tagName === "SELECT";
-
-    if (isInput) return;
-
-    if (event.key.toLowerCase() === "i") {
-      toggleInspectorLayout();
-    }
-
-    if (event.key.toLowerCase() === "r") {
-      toggleRegionLayoutMode();
-    }
-
-    if (event.key === "Escape") {
-      if (window.TSPopupUI && TSState.activePopup.isOpen) {
-        TSPopupUI.closePopup();
+    window.TSStore.commitTrackResult(originalTrack.id, {
+      data: dataset.rows || [],
+      metadata: {
+        fileName: dataset.fileName,
+        rowCount: dataset.rowCount,
+        columnCount: dataset.columnCount,
+        datetimeColumn: dataset.datetimeColumn,
+        targetColumn: dataset.targetColumn,
+        frequency: dataset.frequency,
+        numericColumns: dataset.numericColumns,
+        categoricalColumns: dataset.categoricalColumns
+      },
+      result: {
+        type: "Structure",
+        summary: dataset.structureSummary,
+        previewRows: dataset.previewRows || []
       }
+    });
+  } catch (error) {
+    console.warn("Dataset 정보를 복원하지 못했습니다.", error);
+    sessionStorage.removeItem(TSLayoutState.datasetKey);
+  }
+}
+
+function ensureDefaultWorkspaceObjects() {
+  if (!window.TSState || !window.TSStore) return;
+
+  if (!Array.isArray(window.TSState.regions) || window.TSState.regions.length === 0) {
+    window.TSStore.addRegion("time-series");
+  }
+
+  if (
+    window.TSState.dataset?.isUploaded &&
+    (!Array.isArray(window.TSState.tracks) || window.TSState.tracks.length === 0)
+  ) {
+    window.TSStore.createOriginalTrack(window.TSState.dataset.rows);
+  }
+
+  if (!window.TSState.selectedTrackId && window.TSState.tracks.length > 0) {
+    window.TSStore.selectTrack(window.TSState.tracks[0].id);
+  }
+
+  if (!window.TSState.selectedRegionId && window.TSState.regions.length > 0) {
+    window.TSState.selectedRegionId = window.TSState.regions[0].id;
+  }
+}
+
+/* =========================================================
+   5. Inspector 접기 / 펼치기
+========================================================= */
+
+function toggleInspector() {
+  TSLayoutState.inspectorCollapsed = !TSLayoutState.inspectorCollapsed;
+  applyLayoutRatio();
+  saveLayoutPreference();
+}
+
+function setInspectorCollapsed(collapsed) {
+  TSLayoutState.inspectorCollapsed = Boolean(collapsed);
+  applyLayoutRatio();
+  saveLayoutPreference();
+}
+
+function applyLayoutRatio() {
+  if (!mainLayout) return;
+
+  if (TSLayoutState.inspectorCollapsed) {
+    mainLayout.style.gridTemplateColumns = "26px 0px 220px 1fr";
+
+    if (collapseRail) {
+      collapseRail.textContent = "›";
     }
-  });
+
+    if (inspectorPanel) {
+      inspectorPanel.classList.add("collapsed");
+    }
+
+    return;
+  }
+
+  mainLayout.style.gridTemplateColumns = "26px 170px 220px 1fr";
+
+  if (collapseRail) {
+    collapseRail.textContent = "‹";
+  }
+
+  if (inspectorPanel) {
+    inspectorPanel.classList.remove("collapsed");
+  }
+}
+
+function saveLayoutPreference() {
+  localStorage.setItem(
+    "TS_NAVIGATOR_LAYOUT",
+    JSON.stringify({
+      inspectorCollapsed: TSLayoutState.inspectorCollapsed
+    })
+  );
+}
+
+function restoreLayoutPreference() {
+  const text = localStorage.getItem("TS_NAVIGATOR_LAYOUT");
+
+  if (!text) return;
+
+  try {
+    const preference = JSON.parse(text);
+    TSLayoutState.inspectorCollapsed = Boolean(preference.inspectorCollapsed);
+  } catch (error) {
+    localStorage.removeItem("TS_NAVIGATOR_LAYOUT");
+  }
 }
 
 /* =========================================================
-   Layout 상태 표시
-   ========================================================= */
+   6. Workspace 전체 렌더링
+========================================================= */
 
-function getCurrentLayoutRatio() {
-  return TSState.app.inspectorOpen
-    ? { ...TSLayoutConfig.open }
-    : { ...TSLayoutConfig.closed };
+function renderAllWorkspaceUI() {
+  restoreLayoutPreference();
+  applyLayoutRatio();
+
+  renderWorkspaceStatus();
+
+  if (window.TSInspectorUI) {
+    window.TSInspectorUI.renderInspector();
+  }
+
+  if (window.TSTimelineUI) {
+    window.TSTimelineUI.renderTimeline();
+  }
+
+  if (window.TSRegionUI) {
+    window.TSRegionUI.renderRegions();
+  }
+
+  if (window.TSPopupUI) {
+    window.TSPopupUI.renderPopup();
+  }
+
+  if (window.TSAssistantUI) {
+    window.TSAssistantUI.renderAssistant();
+  }
 }
 
-function getLayoutSummaryText() {
-  const ratio = getCurrentLayoutRatio();
+function requestWorkspaceRender() {
+  renderWorkspaceStatus();
 
-  return [
-    `TRACK INSPECTOR : ${ratio.inspector}%`,
-    `TRACK TIMELINE : ${ratio.timeline}%`,
-    `VISUALIZATION REGION : ${ratio.region}%`,
-  ].join("\n");
+  if (window.TSInspectorUI) {
+    window.TSInspectorUI.renderInspector();
+  }
+
+  if (window.TSTimelineUI) {
+    window.TSTimelineUI.renderTimeline();
+  }
+
+  if (window.TSRegionUI) {
+    window.TSRegionUI.renderRegions();
+  }
+
+  if (window.TSPopupUI) {
+    window.TSPopupUI.renderPopup();
+  }
+
+  saveWorkspaceState();
 }
 
 /* =========================================================
-   전역 노출
-   ========================================================= */
+   7. 상단 상태 표시
+========================================================= */
+
+function renderWorkspaceStatus() {
+  if (!window.TSState) return;
+
+  const status = window.TSState.project?.status || "empty";
+
+  if (workspaceTitle) {
+    workspaceTitle.textContent = "TS Navigator Workspace";
+  }
+
+  if (statusDot) {
+    statusDot.className = `status-dot ${status}`;
+  }
+
+  if (statusText) {
+    statusText.textContent = createStatusLabel(status);
+  }
+}
+
+function createStatusLabel(status) {
+  const labelMap = {
+    empty: "Empty",
+    ready: "Ready",
+    modified: "Modified",
+    "need-recalculation": "Need Recalculation",
+    saved: "Saved"
+  };
+
+  return labelMap[status] || status;
+}
+
+/* =========================================================
+   8. Home 이동
+========================================================= */
+
+function goHome() {
+  saveWorkspaceState();
+  window.location.href = "index.html";
+}
+
+/* =========================================================
+   9. Workspace 저장
+========================================================= */
+
+function saveWorkspaceState() {
+  if (!window.TSState) return;
+
+  try {
+    sessionStorage.setItem(
+      TSLayoutState.autosaveKey,
+      JSON.stringify(window.TSState)
+    );
+  } catch (error) {
+    console.warn("Workspace 상태 저장 실패", error);
+  }
+}
+
+function clearWorkspaceState() {
+  sessionStorage.removeItem(TSLayoutState.autosaveKey);
+  sessionStorage.removeItem(TSLayoutState.datasetKey);
+}
+
+/* =========================================================
+   10. 단축키
+========================================================= */
+
+function handleWorkspaceShortcut(event) {
+  const isMac = navigator.platform.toUpperCase().includes("MAC");
+  const commandKey = isMac ? event.metaKey : event.ctrlKey;
+
+  if (!commandKey) return;
+
+  if (event.key.toLowerCase() === "s") {
+    event.preventDefault();
+    saveWorkspaceState();
+
+    if (window.TSState?.project) {
+      window.TSState.project.status = "saved";
+      window.TSState.project.updatedAt = new Date().toISOString();
+    }
+
+    renderWorkspaceStatus();
+  }
+
+  if (event.key.toLowerCase() === "b") {
+    event.preventDefault();
+    toggleInspector();
+  }
+
+  if (event.key.toLowerCase() === "h") {
+    event.preventDefault();
+    goHome();
+  }
+}
+
+/* =========================================================
+   11. 공통 상태 변경 후 렌더링
+========================================================= */
+
+function dispatchStateChange(actionName = "STATE_CHANGE") {
+  saveWorkspaceState();
+  renderAllWorkspaceUI();
+
+  document.dispatchEvent(
+    new CustomEvent("ts-state-change", {
+      detail: {
+        action: actionName,
+        state: window.TSState
+      }
+    })
+  );
+}
+
+/* =========================================================
+   12. 외부 접근용 객체
+========================================================= */
 
 window.TSLayout = {
-  TSLayoutConfig,
+  state: TSLayoutState,
 
-  applyWorkspaceLayout,
+  initLayout,
 
-  updateInspectorCollapsedContent,
+  restoreWorkspaceState,
+  saveWorkspaceState,
+  clearWorkspaceState,
 
-  toggleInspectorLayout,
-  openInspectorLayout,
-  closeInspectorLayout,
+  renderAllWorkspaceUI,
+  requestWorkspaceRender,
+  dispatchStateChange,
 
-  updateWorkspaceHeight,
-  bindLayoutResize,
-  handleLayoutResize,
-  applyResponsiveLayout,
+  toggleInspector,
+  setInspectorCollapsed,
+  applyLayoutRatio,
 
-  resizeChartsAfterLayoutChange,
-
-  setRegionLayoutMode,
-  toggleRegionLayoutMode,
-
-  initializeWorkspaceLayout,
-
-  bindLayoutKeyboardShortcuts,
-
-  getCurrentLayoutRatio,
-  getLayoutSummaryText,
+  goHome
 };
+
+/* =========================================================
+   13. 자동 초기화
+========================================================= */
+
+document.addEventListener("DOMContentLoaded", () => {
+  initLayout();
+});

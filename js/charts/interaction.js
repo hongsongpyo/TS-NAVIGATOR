@@ -1,523 +1,627 @@
 /* =========================================================
    TS Navigator - interaction.js
-   zoom, hover, point edit, chart interaction
-   ========================================================= */
+   ---------------------------------------------------------
+   역할
+   1. 시계열 그래프 상호작용 관리
+   2. 점 클릭 → 값 수정
+   3. 마커 클릭 → 결측/이상치 값 수정
+   4. Region focus / reset
+   5. Chart tooltip 표시
+   6. Track 수정 후 Region / Timeline / Inspector 갱신
+========================================================= */
 
 /* =========================================================
-   Chart Interaction 초기화
-   ========================================================= */
+   1. 기본 상태
+========================================================= */
 
-function bindChartInteraction(element, options = {}) {
-  if (!element || !TSChartCore.isPlotlyReady()) return;
+const TSChartInteractionState = {
+  activeTooltip: null,
+  activeRegionId: null,
+  activeTrackId: null,
+  editable: true,
+  tooltipEnabled: true
+};
 
-  bindTrackSelection(element);
-  bindHoverInfo(element);
+/* =========================================================
+   2. 초기화
+========================================================= */
 
-  if (options.enablePointEdit !== false) {
-    bindPointEdit(element);
+function initChartInteraction() {
+  injectInteractionStyle();
+  bindGlobalChartEvents();
+}
+
+function bindGlobalChartEvents() {
+  document.addEventListener("click", handleGlobalChartClick);
+  document.addEventListener("mousemove", handleGlobalChartMouseMove);
+  document.addEventListener("mouseleave", hideTooltip, true);
+  document.addEventListener("keydown", handleChartShortcut);
+}
+
+/* =========================================================
+   3. 전역 클릭 처리
+========================================================= */
+
+function handleGlobalChartClick(event) {
+  const chartPoint = event.target.closest(".chart-point");
+  const marker = event.target.closest(".ts-marker");
+  const region = event.target.closest(".region");
+  const focusButton = event.target.closest("[data-action='focus-region']");
+
+  if (chartPoint) {
+    handleChartPointClick(chartPoint);
+    return;
   }
 
-  if (options.enableRelayoutSync !== false) {
-    bindRelayoutSync(element);
+  if (marker) {
+    handleChartMarkerClick(marker);
+    return;
+  }
+
+  if (focusButton) {
+    const regionId = focusButton.dataset.regionId;
+    toggleRegionFocus(regionId);
+    return;
+  }
+
+  if (region) {
+    const regionId = region.dataset.regionId;
+    selectRegionForInteraction(regionId);
   }
 }
 
 /* =========================================================
-   Track 선택
-   ========================================================= */
+   4. 점 클릭 → 값 수정
+========================================================= */
 
-function bindTrackSelection(element) {
-  if (!element) return;
+function handleChartPointClick(pointElement) {
+  if (!TSChartInteractionState.editable) return;
 
-  element.on("plotly_click", (eventData) => {
-    if (!eventData.points || eventData.points.length === 0) return;
+  const trackId = pointElement.dataset.seriesId;
+  const pointIndex = Number(pointElement.dataset.pointIndex);
 
-    const point = eventData.points[0];
-    const trackName = point.data.name;
+  if (!trackId || !Number.isFinite(pointIndex)) return;
 
-    const track = findTrackByTraceName(trackName);
+  const track = window.TSStore?.getTrack(trackId);
+  if (!track) return;
 
-    if (!track) return;
+  const pointInfo = findPointInfo(track, pointIndex);
+  if (!pointInfo) return;
 
-    TSStore.selectTrack(track.id);
-
-    highlightTraceByTrack(element, track.id);
-
-    refreshWorkspaceUI();
+  openValueEditPrompt({
+    track,
+    rowIndex: pointInfo.rowIndex,
+    currentValue: pointInfo.value,
+    reason: "point"
   });
 }
 
-function findTrackByTraceName(traceName) {
-  return TSState.tracks.find((track) => {
-    return (
-      track.name === traceName ||
-      `Before - ${track.name}` === traceName ||
-      `After - ${track.name}` === traceName
-    );
+function handleChartMarkerClick(markerElement) {
+  if (!TSChartInteractionState.editable) return;
+
+  const trackId = markerElement.dataset.trackId;
+  const rowIndex = Number(markerElement.dataset.rowIndex);
+  const markerType = markerElement.dataset.markerType || "marker";
+
+  if (!trackId || !Number.isFinite(rowIndex)) return;
+
+  const track = window.TSStore?.getTrack(trackId);
+  if (!track || !track.data?.[rowIndex]) return;
+
+  const targetColumn = getTargetColumn(track);
+  const currentValue = track.data[rowIndex]?.[targetColumn];
+
+  openValueEditPrompt({
+    track,
+    rowIndex,
+    currentValue,
+    reason: markerType
   });
 }
 
-function highlightTraceByTrack(element, trackId) {
-  if (!element || !element.data || !TSChartCore.isPlotlyReady()) return;
+function openValueEditPrompt({ track, rowIndex, currentValue, reason }) {
+  const targetColumn = getTargetColumn(track);
 
-  const widths = element.data.map((trace) => {
-    const track = findTrackByTraceName(trace.name);
+  if (!targetColumn) {
+    alert("target column을 찾지 못했습니다.");
+    return;
+  }
 
-    if (track && track.id === trackId) {
-      return 4;
-    }
+  const titleMap = {
+    point: "시계열 값 수정",
+    missing: "결측값 수정",
+    outlier: "이상치 수정",
+    edited: "수정값 재수정"
+  };
 
-    return 2;
-  });
-
-  Plotly.restyle(element, {
-    "line.width": widths,
-  });
-}
-
-/* =========================================================
-   Hover 정보
-   ========================================================= */
-
-function bindHoverInfo(element) {
-  if (!element) return;
-
-  element.on("plotly_hover", (eventData) => {
-    if (!eventData.points || eventData.points.length === 0) return;
-
-    const point = eventData.points[0];
-
-    const hoverInfo = {
-      trackName: point.data.name,
-      x: point.x,
-      y: point.y,
-      pointIndex: point.pointIndex,
-    };
-
-    element.dataset.hoverTrack = hoverInfo.trackName;
-    element.dataset.hoverX = hoverInfo.x;
-    element.dataset.hoverY = hoverInfo.y;
-    element.dataset.hoverPointIndex = hoverInfo.pointIndex;
-  });
-
-  element.on("plotly_unhover", () => {
-    delete element.dataset.hoverTrack;
-    delete element.dataset.hoverX;
-    delete element.dataset.hoverY;
-    delete element.dataset.hoverPointIndex;
-  });
-}
-
-/* =========================================================
-   Point Edit
-   그래프 점을 클릭 후 값 수정
-   ========================================================= */
-
-function bindPointEdit(element) {
-  if (!element) return;
-
-  element.on("plotly_doubleclick", () => {
-    const trackName = element.dataset.hoverTrack;
-    const pointIndex = Number(element.dataset.hoverPointIndex);
-
-    if (!trackName || Number.isNaN(pointIndex)) return;
-
-    const track = findTrackByTraceName(trackName);
-
-    if (!track || track.locked) return;
-
-    openPointEditPrompt({
-      element,
-      track,
-      pointIndex,
-    });
-  });
-}
-
-function openPointEditPrompt({
-  element,
-  track,
-  pointIndex,
-}) {
-  const currentValue = track.y[pointIndex];
-
-  const input = window.prompt(
-    `값을 수정합니다.\nTrack: ${track.name}\nIndex: ${pointIndex}`,
-    currentValue
+  const input = prompt(
+    `${titleMap[reason] || "값 수정"}\n` +
+    `Track: ${track.name}\n` +
+    `Column: ${targetColumn}\n` +
+    `현재 값: ${currentValue}\n\n` +
+    `새 값을 입력하세요.`,
+    String(currentValue ?? "")
   );
 
   if (input === null) return;
 
-  const nextValue = TSMathUtils.toNumber(input);
+  const value = toNumber(input);
 
-  if (nextValue === null) {
+  if (!Number.isFinite(value)) {
     alert("숫자 값을 입력해야 합니다.");
     return;
   }
 
-  updateTrackPoint({
+  updateTrackValue({
     trackId: track.id,
-    pointIndex,
-    value: nextValue,
+    rowIndex,
+    targetColumn,
+    value,
+    reason
   });
-
-  rerenderChartElement(element);
-  refreshWorkspaceUI();
 }
 
-function updateTrackPoint({
+/* =========================================================
+   5. Track 값 수정
+========================================================= */
+
+function updateTrackValue({
   trackId,
-  pointIndex,
+  rowIndex,
+  targetColumn,
   value,
+  reason = "manual"
 }) {
-  const track = TSStore.getTrackById(trackId);
+  const track = window.TSStore?.getTrack(trackId);
+  if (!track || !Array.isArray(track.data)) return null;
 
-  if (!track || track.locked) return null;
+  if (track.locked) {
+    alert("잠긴 Track은 수정할 수 없습니다.");
+    return null;
+  }
 
-  const nextY = [...track.y];
-  nextY[pointIndex] = value;
+  if (!track.data[rowIndex]) return null;
 
-  const nextData = (track.data || []).map((item, index) => {
-    if (index !== pointIndex) return item;
+  const updatedRows = [...track.data];
 
-    return {
-      ...item,
-      value,
-      edited: true,
-      editedAt: new Date().toISOString(),
-    };
-  });
+  updatedRows[rowIndex] = {
+    ...updatedRows[rowIndex],
+    [targetColumn]: value,
+    __edited: true,
+    __editReason: reason,
+    __editedAt: new Date().toISOString()
+  };
 
-  TSStore.updateTrack(trackId, {
-    y: nextY,
-    data: nextData,
+  const updatedTrack = window.TSStore.commitTrackResult(trackId, {
+    data: updatedRows,
     metadata: {
       ...track.metadata,
-      edited: true,
-      lastEditedPoint: {
-        index: pointIndex,
-        value,
-        editedAt: new Date().toISOString(),
-      },
+      lastEditedRowIndex: rowIndex,
+      lastEditedColumn: targetColumn,
+      lastEditedValue: value,
+      lastEditedAt: new Date().toISOString()
     },
+    result: {
+      ...(track.result || {}),
+      type: track.result?.type || "Time Series Edit",
+      messages: [
+        `${rowIndex + 1}번째 ${targetColumn} 값이 ${value}로 수정되었습니다.`,
+        "값이 변경되었으므로 예측/평가지표는 재계산이 필요할 수 있습니다."
+      ]
+    }
   });
 
-  return TSStore.getTrackById(trackId);
+  markDependentTracksNeedRecalculation(trackId);
+  refreshAfterInteraction("EDIT_TRACK_VALUE");
+
+  return updatedTrack;
+}
+
+function markDependentTracksNeedRecalculation(sourceTrackId) {
+  if (!window.TSState?.tracks) return;
+
+  window.TSState.tracks.forEach(track => {
+    if (track.sourceTrackId === sourceTrackId) {
+      track.metadata = {
+        ...track.metadata,
+        needRecalculation: true
+      };
+
+      track.result = {
+        ...(track.result || {}),
+        messages: [
+          ...(track.result?.messages || []),
+          "원본 Track 값이 수정되어 재계산이 필요합니다."
+        ]
+      };
+    }
+  });
+
+  if (window.TSState?.project) {
+    window.TSState.project.status = "need-recalculation";
+  }
 }
 
 /* =========================================================
-   Zoom / Relayout Sync
-   같은 workspace 내 chart x축 범위 동기화
-   ========================================================= */
+   6. Tooltip
+========================================================= */
 
-let isRelayoutSyncing = false;
+function handleGlobalChartMouseMove(event) {
+  if (!TSChartInteractionState.tooltipEnabled) return;
 
-function bindRelayoutSync(element) {
-  if (!element) return;
+  const point = event.target.closest(".chart-point");
+  const marker = event.target.closest(".ts-marker");
 
-  element.on("plotly_relayout", (eventData) => {
-    if (isRelayoutSyncing) return;
-
-    const range = extractXRangeFromRelayout(eventData);
-
-    if (!range) return;
-
-    syncXRangeToOtherCharts(element, range);
-  });
-}
-
-function extractXRangeFromRelayout(eventData = {}) {
-  const start =
-    eventData["xaxis.range[0]"] ||
-    eventData["xaxis.range"]?.[0] ||
-    null;
-
-  const end =
-    eventData["xaxis.range[1]"] ||
-    eventData["xaxis.range"]?.[1] ||
-    null;
-
-  if (!start || !end) return null;
-
-  return [start, end];
-}
-
-function syncXRangeToOtherCharts(sourceElement, range) {
-  if (!TSChartCore.isPlotlyReady()) return;
-
-  const charts = document.querySelectorAll(".plotly-chart");
-
-  isRelayoutSyncing = true;
-
-  charts.forEach((chart) => {
-    if (chart === sourceElement) return;
-
-    Plotly.relayout(chart, {
-      "xaxis.range": range,
-    });
-  });
-
-  isRelayoutSyncing = false;
-}
-
-function resetChartZoom(element) {
-  if (!element || !TSChartCore.isPlotlyReady()) return;
-
-  Plotly.relayout(element, {
-    "xaxis.autorange": true,
-    "yaxis.autorange": true,
-  });
-}
-
-function resetAllChartZoom() {
-  document.querySelectorAll(".plotly-chart").forEach((element) => {
-    resetChartZoom(element);
-  });
-}
-
-/* =========================================================
-   Chart 재렌더링
-   ========================================================= */
-
-function rerenderChartElement(element) {
-  if (!element) return;
-
-  const regionId = element.dataset.regionChart;
-  const chartType = element.dataset.chartType || "timeseries";
-
-  if (regionId && chartType === "forecast" && window.TSForecastChart) {
-    TSForecastChart.renderRegionForecastChart({
-      element,
-      regionId,
-    });
-    bindChartInteraction(element);
+  if (point) {
+    showPointTooltip(point, event);
     return;
   }
 
-  if (regionId && chartType === "metric" && window.TSMetricChart) {
-    TSMetricChart.renderRegionMetricChart({
-      element,
-      regionId,
-    });
-    bindChartInteraction(element, {
-      enablePointEdit: false,
-    });
+  if (marker) {
+    showMarkerTooltip(marker, event);
     return;
   }
 
-  if (regionId && window.TSTimeSeriesChart) {
-    TSTimeSeriesChart.renderRegionTimeSeriesChart({
-      element,
-      regionId,
-    });
-    bindChartInteraction(element);
+  hideTooltip();
+}
+
+function showPointTooltip(pointElement, event) {
+  const trackId = pointElement.dataset.seriesId;
+  const pointIndex = Number(pointElement.dataset.pointIndex);
+  const x = Number(pointElement.dataset.x);
+  const y = Number(pointElement.dataset.y);
+
+  const track = window.TSStore?.getTrack(trackId);
+  const trackName = track?.name || "Series";
+
+  const dateText = formatTooltipX(x);
+  const valueText = formatNumber(y, 4);
+
+  showTooltip(
+    `
+      <strong>${escapeHTML(trackName)}</strong><br />
+      Date: ${escapeHTML(dateText)}<br />
+      Value: ${valueText}<br />
+      Point: ${pointIndex + 1}
+    `,
+    event.clientX,
+    event.clientY
+  );
+}
+
+function showMarkerTooltip(markerElement, event) {
+  const trackId = markerElement.dataset.trackId;
+  const rowIndex = Number(markerElement.dataset.rowIndex);
+  const markerType = markerElement.dataset.markerType;
+
+  const track = window.TSStore?.getTrack(trackId);
+  const targetColumn = getTargetColumn(track);
+  const value = track?.data?.[rowIndex]?.[targetColumn];
+
+  showTooltip(
+    `
+      <strong>${escapeHTML(markerType || "marker")}</strong><br />
+      Track: ${escapeHTML(track?.name || "-")}<br />
+      Row: ${rowIndex + 1}<br />
+      Value: ${escapeHTML(value ?? "-")}
+    `,
+    event.clientX,
+    event.clientY
+  );
+}
+
+function showTooltip(html, x, y) {
+  let tooltip = TSChartInteractionState.activeTooltip;
+
+  if (!tooltip) {
+    tooltip = document.createElement("div");
+    tooltip.className = "chart-tooltip";
+    document.body.appendChild(tooltip);
+    TSChartInteractionState.activeTooltip = tooltip;
+  }
+
+  tooltip.innerHTML = html;
+  tooltip.style.left = `${Math.min(x + 12, window.innerWidth - 190)}px`;
+  tooltip.style.top = `${Math.min(y + 12, window.innerHeight - 110)}px`;
+  tooltip.style.display = "block";
+}
+
+function hideTooltip() {
+  const tooltip = TSChartInteractionState.activeTooltip;
+
+  if (tooltip) {
+    tooltip.style.display = "none";
   }
 }
 
-function rerenderAllCharts() {
-  document.querySelectorAll(".plotly-chart").forEach((element) => {
-    rerenderChartElement(element);
+/* =========================================================
+   7. Region Focus / Select
+========================================================= */
+
+function selectRegionForInteraction(regionId) {
+  if (!regionId || !window.TSState) return;
+
+  TSChartInteractionState.activeRegionId = regionId;
+  window.TSState.selectedRegionId = regionId;
+
+  document.querySelectorAll(".region").forEach(region => {
+    region.classList.toggle("selected", region.dataset.regionId === regionId);
+  });
+
+  if (window.TSLayout) {
+    window.TSLayout.saveWorkspaceState();
+  }
+}
+
+function toggleRegionFocus(regionId) {
+  if (!regionId) return;
+
+  const currentFocus = TSChartInteractionState.activeRegionId;
+  const shouldReset = currentFocus === regionId && document.querySelector(".region.focused");
+
+  if (shouldReset) {
+    resetRegionFocus();
+    return;
+  }
+
+  TSChartInteractionState.activeRegionId = regionId;
+
+  document.querySelectorAll(".region").forEach(region => {
+    const isTarget = region.dataset.regionId === regionId;
+
+    region.classList.toggle("focused", isTarget);
+    region.classList.toggle("dimmed", !isTarget);
+  });
+}
+
+function resetRegionFocus() {
+  TSChartInteractionState.activeRegionId = null;
+
+  document.querySelectorAll(".region").forEach(region => {
+    region.classList.remove("focused");
+    region.classList.remove("dimmed");
   });
 }
 
 /* =========================================================
-   Chart Context Menu
-   ========================================================= */
+   8. 단축키
+========================================================= */
 
-function bindChartContextMenu(element) {
-  if (!element) return;
+function handleChartShortcut(event) {
+  if (event.key === "Escape") {
+    hideTooltip();
+    resetRegionFocus();
+  }
 
-  element.addEventListener("contextmenu", (event) => {
-    event.preventDefault();
+  if (event.key.toLowerCase() === "e" && event.altKey) {
+    TSChartInteractionState.editable = !TSChartInteractionState.editable;
+    showTemporaryToast(
+      TSChartInteractionState.editable
+        ? "Chart edit mode ON"
+        : "Chart edit mode OFF"
+    );
+  }
 
-    const trackName = element.dataset.hoverTrack;
-    const pointIndex = Number(element.dataset.hoverPointIndex);
+  if (event.key.toLowerCase() === "t" && event.altKey) {
+    TSChartInteractionState.tooltipEnabled = !TSChartInteractionState.tooltipEnabled;
+    hideTooltip();
 
-    if (!trackName || Number.isNaN(pointIndex)) return;
-
-    const track = findTrackByTraceName(trackName);
-
-    if (!track) return;
-
-    showPointContextMenu({
-      x: event.clientX,
-      y: event.clientY,
-      track,
-      pointIndex,
-      element,
-    });
-  });
+    showTemporaryToast(
+      TSChartInteractionState.tooltipEnabled
+        ? "Tooltip ON"
+        : "Tooltip OFF"
+    );
+  }
 }
 
-function showPointContextMenu({
-  x,
-  y,
-  track,
-  pointIndex,
-  element,
-}) {
-  removePointContextMenu();
+/* =========================================================
+   9. Point 정보 찾기
+========================================================= */
 
-  const menu = document.createElement("div");
-  menu.className = "point-context-menu";
-  menu.id = "pointContextMenu";
+function findPointInfo(track, pointIndex) {
+  if (!track) return null;
 
-  menu.style.left = `${x}px`;
-  menu.style.top = `${y}px`;
+  if (window.TSTimeSeriesChart) {
+    const series = window.TSTimeSeriesChart.createSeriesFromTrack(track);
+    const point = series.points[pointIndex];
 
-  menu.innerHTML = `
-    <button type="button" data-action="edit">값 수정</button>
-    <button type="button" data-action="missing">결측치로 변경</button>
-    <button type="button" data-action="outlier">이상치 표시</button>
-  `;
-
-  document.body.appendChild(menu);
-
-  menu.addEventListener("click", (event) => {
-    const button = event.target.closest("button");
-
-    if (!button) return;
-
-    const action = button.dataset.action;
-
-    if (action === "edit") {
-      openPointEditPrompt({
-        element,
-        track,
-        pointIndex,
-      });
+    if (point) {
+      return {
+        rowIndex: point.rowIndex,
+        value: point.y,
+        point
+      };
     }
+  }
 
-    if (action === "missing") {
-      updateTrackPoint({
-        trackId: track.id,
-        pointIndex,
-        value: null,
-      });
-      rerenderChartElement(element);
-      refreshWorkspaceUI();
-    }
+  const targetColumn = getTargetColumn(track);
+  const row = track.data?.[pointIndex];
 
-    if (action === "outlier") {
-      markPointAsOutlier({
-        trackId: track.id,
-        pointIndex,
-      });
-      rerenderChartElement(element);
-      refreshWorkspaceUI();
-    }
+  if (!row || !targetColumn) return null;
 
-    removePointContextMenu();
-  });
+  return {
+    rowIndex: pointIndex,
+    value: row[targetColumn],
+    point: null
+  };
+}
+
+/* =========================================================
+   10. Refresh
+========================================================= */
+
+function refreshAfterInteraction(actionName) {
+  hideTooltip();
+
+  if (window.TSLayout) {
+    window.TSLayout.dispatchStateChange(actionName);
+    return;
+  }
+
+  if (window.TSRegionUI) window.TSRegionUI.renderRegions();
+  if (window.TSTimelineUI) window.TSTimelineUI.renderTimeline();
+  if (window.TSInspectorUI) window.TSInspectorUI.renderInspector();
+}
+
+/* =========================================================
+   11. Toast
+========================================================= */
+
+function showTemporaryToast(message) {
+  let toast = document.getElementById("ts-interaction-toast");
+
+  if (!toast) {
+    toast = document.createElement("div");
+    toast.id = "ts-interaction-toast";
+    toast.className = "interaction-toast";
+    document.body.appendChild(toast);
+  }
+
+  toast.textContent = message;
+  toast.classList.add("show");
 
   setTimeout(() => {
-    document.addEventListener("click", removePointContextMenu, {
-      once: true,
-    });
-  }, 0);
-}
-
-function removePointContextMenu() {
-  const menu = document.getElementById("pointContextMenu");
-
-  if (menu) {
-    menu.remove();
-  }
-}
-
-function markPointAsOutlier({
-  trackId,
-  pointIndex,
-}) {
-  const track = TSStore.getTrackById(trackId);
-
-  if (!track || track.locked) return null;
-
-  const nextData = (track.data || []).map((item, index) => {
-    if (index !== pointIndex) return item;
-
-    return {
-      ...item,
-      isOutlier: true,
-      manuallyMarkedOutlier: true,
-    };
-  });
-
-  TSStore.updateTrack(trackId, {
-    data: nextData,
-    metadata: {
-      ...track.metadata,
-      edited: true,
-      lastMarkedOutlier: {
-        index: pointIndex,
-        markedAt: new Date().toISOString(),
-      },
-    },
-  });
-
-  return TSStore.getTrackById(trackId);
+    toast.classList.remove("show");
+  }, 1400);
 }
 
 /* =========================================================
-   전체 Chart 이벤트 연결
-   ========================================================= */
+   12. Column / Format 보조
+========================================================= */
 
-function bindAllChartInteractions() {
-  document.querySelectorAll(".plotly-chart").forEach((element) => {
-    bindChartInteraction(element);
-    bindChartContextMenu(element);
-  });
+function getTargetColumn(track) {
+  return (
+    track?.metadata?.targetColumn ||
+    window.TSState?.dataset?.targetColumn ||
+    null
+  );
+}
+
+function toNumber(value) {
+  if (window.TSMathUtils) {
+    return window.TSMathUtils.toNumber(value);
+  }
+
+  const number = Number(value);
+  return Number.isFinite(number) ? number : NaN;
+}
+
+function formatTooltipX(value) {
+  if (!Number.isFinite(value)) return "-";
+
+  if (value > 100000000000) {
+    const date = new Date(value);
+
+    if (!Number.isNaN(date.getTime())) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+
+      return `${year}-${month}-${day}`;
+    }
+  }
+
+  return String(value);
+}
+
+function formatNumber(value, digits = 3) {
+  if (!Number.isFinite(value)) return "-";
+  return Number(value).toFixed(digits);
+}
+
+function escapeHTML(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 /* =========================================================
-   Workspace UI Refresh
-   ========================================================= */
+   13. 스타일 주입
+========================================================= */
 
-function refreshWorkspaceUI() {
-  if (window.TSTimelineUI) {
-    TSTimelineUI.renderTimeline();
-  }
+function injectInteractionStyle() {
+  if (document.getElementById("ts-chart-interaction-style")) return;
 
-  if (window.TSInspectorUI) {
-    TSInspectorUI.renderInspector();
-  }
+  const style = document.createElement("style");
+  style.id = "ts-chart-interaction-style";
+  style.textContent = `
+    .chart-point,
+    .ts-marker {
+      cursor: pointer;
+    }
 
-  if (window.TSRegionsUI) {
-    TSRegionsUI.renderRegions();
-  }
+    .chart-point:hover {
+      filter: drop-shadow(0 0 4px rgba(255,255,255,.5));
+    }
+
+    .region.focused {
+      position: relative;
+      z-index: 8;
+      transform: scale(1.01);
+      transition: transform .16s ease, opacity .16s ease;
+    }
+
+    .region.dimmed {
+      opacity: .32;
+      transition: opacity .16s ease;
+    }
+
+    .interaction-toast {
+      position: fixed;
+      left: 50%;
+      bottom: 22px;
+      transform: translateX(-50%) translateY(12px);
+      padding: 8px 12px;
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 999px;
+      background: rgba(42,42,42,.96);
+      color: #f1f1f1;
+      font-size: 10px;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 90;
+      box-shadow: 0 14px 34px rgba(0,0,0,.38);
+      transition: opacity .18s ease, transform .18s ease;
+    }
+
+    .interaction-toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  `;
+
+  document.head.appendChild(style);
 }
 
 /* =========================================================
-   전역 노출
-   ========================================================= */
+   14. 외부 접근용 객체
+========================================================= */
 
 window.TSChartInteraction = {
-  bindChartInteraction,
+  state: TSChartInteractionState,
 
-  bindTrackSelection,
-  findTrackByTraceName,
-  highlightTraceByTrack,
+  initChartInteraction,
+  updateTrackValue,
 
-  bindHoverInfo,
+  handleChartPointClick,
+  handleChartMarkerClick,
 
-  bindPointEdit,
-  openPointEditPrompt,
-  updateTrackPoint,
+  selectRegionForInteraction,
+  toggleRegionFocus,
+  resetRegionFocus,
 
-  bindRelayoutSync,
-  extractXRangeFromRelayout,
-  syncXRangeToOtherCharts,
-  resetChartZoom,
-  resetAllChartZoom,
-
-  rerenderChartElement,
-  rerenderAllCharts,
-
-  bindChartContextMenu,
-  showPointContextMenu,
-  removePointContextMenu,
-  markPointAsOutlier,
-
-  bindAllChartInteractions,
-  refreshWorkspaceUI,
+  showTooltip,
+  hideTooltip,
+  showTemporaryToast
 };
+
+/* =========================================================
+   15. 자동 초기화
+========================================================= */
+
+document.addEventListener("DOMContentLoaded", () => {
+  initChartInteraction();
+});

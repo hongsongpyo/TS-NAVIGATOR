@@ -1,396 +1,651 @@
 /* =========================================================
    TS Navigator - timeSeriesChart.js
-   시계열 라인 그래프 렌더링
-   ========================================================= */
+   ---------------------------------------------------------
+   역할
+   1. 원본 / 전처리 / Feature Track 시계열 그래프 생성
+   2. Track 데이터를 ChartCore series 형태로 변환
+   3. 하나의 Region 안에서 여러 Track 비교 표시
+   4. 결측치 / 이상치 / 수정 지점 marker 표시
+   5. 점 클릭 기반 값 수정 기능의 기반 제공
+========================================================= */
 
 /* =========================================================
-   단일 Track 시계열 그래프
-   ========================================================= */
+   1. 기본 설정
+========================================================= */
 
-function renderTimeSeriesChart({
-  element,
-  track,
-  title = null,
-  showRangeSlider = false,
-  editable = true,
-}) {
-  if (!element || !track) {
-    TSChartCore.showChartEmpty(element, "표시할 시계열 Track이 없습니다.");
-    return null;
-  }
+const TSTimeSeriesChartConfig = {
+  showPoints: false,
+  showLegend: true,
+  showBadge: true,
+  showXLabels: false,
+  showMissingMarkers: true,
+  showOutlierMarkers: true,
+  editable: true
+};
 
-  const trace = TSChartCore.trackToLineTrace(track);
+/* =========================================================
+   2. Region용 시계열 차트 생성
+========================================================= */
 
-  const layout = createTimeSeriesLayout({
-    title: title || track.name,
-    showRangeSlider,
-  });
+function createTimeSeriesChartForRegion(regionId, options = {}) {
+  const tracks = getTracksForRegion(regionId);
 
-  const config = {
-    ...TSChartCore.createBaseConfig(),
-    editable,
-  };
-
-  return TSChartCore.renderPlot(element, [trace], layout, config);
+  return createTimeSeriesChartFromTracks(tracks, options);
 }
 
-/* =========================================================
-   여러 Track 비교 그래프
-   ========================================================= */
+function createTimeSeriesChartFromTracks(tracks, options = {}) {
+  const config = {
+    ...TSTimeSeriesChartConfig,
+    ...options
+  };
 
-function renderMultiTrackTimeSeriesChart({
-  element,
-  tracks = [],
-  title = "Time Series Comparison",
-  showRangeSlider = false,
-  editable = true,
-}) {
-  if (!element || tracks.length === 0) {
-    TSChartCore.showChartEmpty(element, "표시할 Track이 없습니다.");
-    return null;
-  }
-
-  const visibleTracks = tracks.filter((track) => track.visible !== false);
+  const visibleTracks = (tracks || []).filter(track => track.visible !== false);
 
   if (visibleTracks.length === 0) {
-    TSChartCore.showChartEmpty(element, "표시 중인 Track이 없습니다.");
-    return null;
+    return createEmptyTimeSeriesChartHTML();
   }
 
-  const traces = TSChartCore.tracksToTraces(visibleTracks);
+  const seriesList = visibleTracks
+    .map((track, index) => createSeriesFromTrack(track, index))
+    .filter(series => series.points.length > 0);
 
-  const layout = createTimeSeriesLayout({
-    title,
-    showRangeSlider,
-  });
-
-  const yRange = TSChartCore.getYRangeFromTraces(traces);
-
-  if (yRange) {
-    layout.yaxis.range = yRange;
+  if (seriesList.length === 0) {
+    return createEmptyTimeSeriesChartHTML();
   }
 
-  const config = {
-    ...TSChartCore.createBaseConfig(),
-    editable,
+  const chartOptions = {
+    points: config.showPoints,
+    legend: config.showLegend,
+    showXLabels: config.showXLabels,
+    area: false,
+    includeZero: false,
+    config: config.chartConfig || {}
   };
 
-  return TSChartCore.renderPlot(element, traces, layout, config);
+  const lineChartHTML = window.TSChartCore
+    ? window.TSChartCore.createLineChart(seriesList, chartOptions)
+    : createFallbackLineChart(seriesList);
+
+  const markerHTML = createMarkerOverlayHTML(visibleTracks, seriesList, config);
+  const badgeHTML = config.showBadge ? createTimeSeriesBadgeHTML(visibleTracks) : "";
+
+  return `
+    ${badgeHTML}
+    <div class="ts-chart-layer" data-chart-type="time-series">
+      ${lineChartHTML}
+      ${markerHTML}
+    </div>
+  `;
 }
 
 /* =========================================================
-   Region 기준 시계열 그래프
-   ========================================================= */
+   3. Track → Series 변환
+========================================================= */
 
-function renderRegionTimeSeriesChart({
-  element,
-  regionId,
-  title = null,
-}) {
-  const region = TSStore.getRegionById(regionId);
+function createSeriesFromTrack(track, index = 0) {
+  const datetimeColumn = getDatetimeColumn(track);
+  const targetColumn = getTargetColumn(track);
+  const rows = track.data || [];
 
-  if (!region) {
-    TSChartCore.showChartEmpty(element, "Region을 찾을 수 없습니다.");
-    return null;
-  }
+  const points = rows
+    .map((row, rowIndex) => {
+      const date = parseTrackDate(row, datetimeColumn);
+      const value = parseTrackValue(row, targetColumn);
 
-  const tracks = region.trackIds
-    .map((trackId) => TSStore.getTrackById(trackId))
-    .filter(Boolean)
-    .filter((track) => track.type !== "Evaluation Result");
+      return {
+        x: date ? date.getTime() : rowIndex,
+        y: value,
+        rowIndex,
+        date,
+        raw: row,
+        isMissing: Boolean(row.__missingTimestamp) || !Number.isFinite(value),
+        isEdited: Boolean(row.__edited),
+        isOutlier: Boolean(row.__outlier)
+      };
+    })
+    .filter(point => Number.isFinite(point.y));
 
-  return renderMultiTrackTimeSeriesChart({
-    element,
-    tracks,
-    title: title || region.name,
-    showRangeSlider: true,
-    editable: true,
-  });
-}
-
-/* =========================================================
-   전체 Region 다시 렌더링
-   ========================================================= */
-
-function renderAllRegionTimeSeriesCharts() {
-  document.querySelectorAll("[data-region-chart]").forEach((element) => {
-    const regionId = element.dataset.regionChart;
-
-    renderRegionTimeSeriesChart({
-      element,
-      regionId,
-    });
-  });
-}
-
-/* =========================================================
-   Time Series Layout
-   ========================================================= */
-
-function createTimeSeriesLayout({
-  title = "Time Series",
-  showRangeSlider = false,
-}) {
-  const layout = TSChartCore.createBaseLayout({
-    title,
-    xTitle: "Time",
-    yTitle: "Value",
-    showLegend: true,
-  });
-
-  layout.xaxis = {
-    ...layout.xaxis,
-    type: "date",
-    rangeslider: {
-      visible: showRangeSlider,
-      thickness: 0.08,
-    },
-    rangeselector: {
-      buttons: [
-        {
-          count: 7,
-          label: "7D",
-          step: "day",
-          stepmode: "backward",
-        },
-        {
-          count: 1,
-          label: "1M",
-          step: "month",
-          stepmode: "backward",
-        },
-        {
-          count: 3,
-          label: "3M",
-          step: "month",
-          stepmode: "backward",
-        },
-        {
-          step: "all",
-          label: "ALL",
-        },
-      ],
-      font: {
-        size: 10,
-      },
-    },
+  return {
+    id: track.id,
+    name: track.name || `Track ${index + 1}`,
+    type: track.type || "Time Series",
+    color: track.color || getDefaultColor(index),
+    dashed: track.type === "Forecast Data",
+    points,
+    track
   };
-
-  return layout;
 }
 
-/* =========================================================
-   Track Type별 시각화 Trace 보정
-   ========================================================= */
+function createMultipleSeriesFromRows(rows, columns, datetimeColumn, options = {}) {
+  const targetColumns = columns.filter(column => column !== datetimeColumn);
 
-function createTimeSeriesTraceByTrackType(track) {
-  if (!track) return null;
+  return targetColumns.map((targetColumn, index) => {
+    const points = rows
+      .map((row, rowIndex) => {
+        const date = parseTrackDate(row, datetimeColumn);
+        const value = parseTrackValue(row, targetColumn);
 
-  const baseTrace = TSChartCore.trackToLineTrace(track);
+        return {
+          x: date ? date.getTime() : rowIndex,
+          y: value,
+          rowIndex,
+          date,
+          raw: row
+        };
+      })
+      .filter(point => Number.isFinite(point.y));
 
-  if (track.type === "Original Data") {
-    baseTrace.mode = "lines+markers";
-    baseTrace.marker.size = 5;
-  }
-
-  if (track.type === "Preprocessed Data") {
-    baseTrace.mode = "lines";
-    baseTrace.line.width = 2.4;
-  }
-
-  if (track.type === "Feature Data") {
-    baseTrace.mode = "lines";
-    baseTrace.line.dash = "dot";
-  }
-
-  if (track.type === "Residual Data") {
-    baseTrace.mode = "lines+markers";
-    baseTrace.line.dash = "dash";
-    baseTrace.marker.size = 4;
-  }
-
-  return baseTrace;
-}
-
-function tracksToTimeSeriesTraces(tracks = []) {
-  return tracks
-    .filter(Boolean)
-    .filter((track) => track.visible !== false)
-    .map((track) => createTimeSeriesTraceByTrackType(track))
-    .filter(Boolean);
-}
-
-/* =========================================================
-   원본 + 처리 결과 비교 그래프
-   ========================================================= */
-
-function renderBeforeAfterChart({
-  element,
-  beforeTrack,
-  afterTrack,
-  title = "Before / After",
-}) {
-  if (!beforeTrack || !afterTrack) {
-    TSChartCore.showChartEmpty(element, "비교할 Track이 부족합니다.");
-    return null;
-  }
-
-  const beforeTrace = createTimeSeriesTraceByTrackType(beforeTrack);
-  const afterTrace = createTimeSeriesTraceByTrackType(afterTrack);
-
-  beforeTrace.name = `Before - ${beforeTrack.name}`;
-  beforeTrace.line.dash = "dot";
-
-  afterTrace.name = `After - ${afterTrack.name}`;
-  afterTrace.line.width = 2.8;
-
-  const layout = createTimeSeriesLayout({
-    title,
-    showRangeSlider: true,
-  });
-
-  return TSChartCore.renderPlot(element, [beforeTrace, afterTrace], layout);
-}
-
-/* =========================================================
-   이상치 표시 그래프
-   ========================================================= */
-
-function renderOutlierChart({
-  element,
-  track,
-  title = "Outlier Detection",
-}) {
-  if (!track) {
-    TSChartCore.showChartEmpty(element, "Track이 없습니다.");
-    return null;
-  }
-
-  const baseTrace = createTimeSeriesTraceByTrackType(track);
-
-  const outlierPoints = (track.data || []).filter((item) => item.isOutlier);
-
-  const outlierTrace = TSChartCore.createMarkerTrace({
-    x: outlierPoints.map((item) => item.date),
-    y: outlierPoints.map((item) => item.originalValue ?? item.value),
-    name: "Outlier",
-    color: TSChartCore.TSChartColors.residual,
-    size: 9,
-    symbol: "x",
-  });
-
-  const layout = createTimeSeriesLayout({
-    title,
-    showRangeSlider: true,
-  });
-
-  return TSChartCore.renderPlot(element, [baseTrace, outlierTrace], layout);
-}
-
-/* =========================================================
-   결측치 보간 표시 그래프
-   ========================================================= */
-
-function renderMissingFilledChart({
-  element,
-  track,
-  title = "Missing Value Filled",
-}) {
-  if (!track) {
-    TSChartCore.showChartEmpty(element, "Track이 없습니다.");
-    return null;
-  }
-
-  const baseTrace = createTimeSeriesTraceByTrackType(track);
-
-  const filledPoints = (track.data || []).filter((item) => item.missingFilled);
-
-  const filledTrace = TSChartCore.createMarkerTrace({
-    x: filledPoints.map((item) => item.date),
-    y: filledPoints.map((item) => item.value),
-    name: "Filled Missing",
-    color: TSChartCore.TSChartColors.auto,
-    size: 8,
-    symbol: "diamond",
-  });
-
-  const layout = createTimeSeriesLayout({
-    title,
-    showRangeSlider: true,
-  });
-
-  return TSChartCore.renderPlot(element, [baseTrace, filledTrace], layout);
-}
-
-/* =========================================================
-   선택 Track 강조
-   ========================================================= */
-
-function highlightSelectedTrackInChart(element, selectedTrackId) {
-  if (!element || !TSChartCore.isPlotlyReady()) return;
-
-  const traces = element.data || [];
-
-  const widths = traces.map((trace) => {
-    const track = TSState.tracks.find((item) => item.name === trace.name);
-
-    if (track && track.id === selectedTrackId) {
-      return 4;
-    }
-
-    return 2;
-  });
-
-  Plotly.restyle(element, {
-    "line.width": widths,
+    return {
+      id: `series_${targetColumn}`,
+      name: targetColumn,
+      type: "Time Series",
+      color: getDefaultColor(index),
+      dashed: false,
+      points,
+      targetColumn
+    };
   });
 }
 
 /* =========================================================
-   Chart 클릭 이벤트 연결
-   ========================================================= */
+   4. Marker Overlay
+========================================================= */
 
-function bindTimeSeriesChartEvents(element) {
-  if (!element || !TSChartCore.isPlotlyReady()) return;
+function createMarkerOverlayHTML(tracks, seriesList, config) {
+  if (!window.TSChartCore || (!config.showMissingMarkers && !config.showOutlierMarkers)) {
+    return "";
+  }
 
-  element.on("plotly_click", (eventData) => {
-    if (!eventData.points || eventData.points.length === 0) return;
+  const bounds = window.TSChartCore.calculateBounds(seriesList);
+  const context = window.TSChartCore.createChartContext({}, bounds);
 
-    const point = eventData.points[0];
-    const trackName = point.data.name;
+  const markers = [];
 
-    const track = TSState.tracks.find((item) => item.name === trackName);
+  tracks.forEach(track => {
+    const series = createSeriesFromTrack(track);
+    const allRows = track.data || [];
+    const datetimeColumn = getDatetimeColumn(track);
+    const targetColumn = getTargetColumn(track);
 
-    if (track) {
-      TSStore.selectTrack(track.id);
+    allRows.forEach((row, rowIndex) => {
+      const date = parseTrackDate(row, datetimeColumn);
+      const value = parseTrackValue(row, targetColumn);
 
-      if (window.TSInspectorUI) {
-        TSInspectorUI.renderInspector();
+      if (!date && !Number.isFinite(value)) return;
+
+      const xValue = date ? date.getTime() : rowIndex;
+      const yValue = Number.isFinite(value) ? value : estimateMarkerY(series);
+
+      if (!Number.isFinite(yValue)) return;
+
+      if (config.showMissingMarkers && (row.__missingTimestamp || !Number.isFinite(value))) {
+        markers.push(createMarkerSVG({
+          x: xValue,
+          y: yValue,
+          context,
+          type: "missing",
+          trackId: track.id,
+          rowIndex
+        }));
       }
 
-      highlightSelectedTrackInChart(element, track.id);
+      if (config.showOutlierMarkers && row.__outlier) {
+        markers.push(createMarkerSVG({
+          x: xValue,
+          y: yValue,
+          context,
+          type: "outlier",
+          trackId: track.id,
+          rowIndex
+        }));
+      }
+
+      if (row.__edited) {
+        markers.push(createMarkerSVG({
+          x: xValue,
+          y: yValue,
+          context,
+          type: "edited",
+          trackId: track.id,
+          rowIndex
+        }));
+      }
+    });
+  });
+
+  if (markers.length === 0) return "";
+
+  return `
+    <svg
+      class="ts-marker-overlay"
+      viewBox="0 0 720 260"
+      preserveAspectRatio="none"
+    >
+      ${markers.join("")}
+    </svg>
+  `;
+}
+
+function createMarkerSVG({ x, y, context, type, trackId, rowIndex }) {
+  const cx = window.TSChartCore.scaleX(x, context);
+  const cy = window.TSChartCore.scaleY(y, context);
+
+  const markerClass = `ts-marker ${type}`;
+
+  const labelMap = {
+    missing: "M",
+    outlier: "!",
+    edited: "E"
+  };
+
+  return `
+    <g
+      class="${markerClass}"
+      data-marker-type="${type}"
+      data-track-id="${trackId}"
+      data-row-index="${rowIndex}"
+    >
+      <circle cx="${cx}" cy="${cy}" r="5"></circle>
+      <text x="${cx}" y="${cy + 3}" text-anchor="middle">${labelMap[type] || "•"}</text>
+    </g>
+  `;
+}
+
+function estimateMarkerY(series) {
+  if (!series || !series.points || series.points.length === 0) return NaN;
+
+  const values = series.points.map(point => point.y).filter(Number.isFinite);
+
+  if (window.TSMathUtils) {
+    return window.TSMathUtils.mean(values);
+  }
+
+  return values.reduce((acc, value) => acc + value, 0) / values.length;
+}
+
+/* =========================================================
+   5. Badge
+========================================================= */
+
+function createTimeSeriesBadgeHTML(tracks) {
+  const latestTrack = getLatestTrack(tracks);
+
+  if (!latestTrack) return "";
+
+  const rowCount = latestTrack.data?.length || 0;
+  const datetimeColumn = getDatetimeColumn(latestTrack) || "-";
+  const targetColumn = getTargetColumn(latestTrack) || "-";
+  const stackCount = latestTrack.analysisStack?.length || 0;
+
+  return `
+    <div class="result-badge">
+      <strong>Time Series</strong><br />
+      Track: ${escapeHTML(shortText(latestTrack.name, 24))}<br />
+      Rows: ${rowCount}<br />
+      Date/Target: ${escapeHTML(datetimeColumn)} / ${escapeHTML(targetColumn)}<br />
+      Stack: ${stackCount} steps
+    </div>
+  `;
+}
+
+/* =========================================================
+   6. 값 수정 기능 기반
+========================================================= */
+
+function attachTimeSeriesInteraction(container, options = {}) {
+  if (!container) return;
+
+  container.addEventListener("click", event => {
+    const point = event.target.closest(".chart-point");
+    const marker = event.target.closest(".ts-marker");
+
+    if (point) {
+      handlePointClick(point, options);
+      return;
+    }
+
+    if (marker) {
+      handleMarkerClick(marker, options);
     }
   });
 }
 
+function handlePointClick(pointElement, options = {}) {
+  const seriesId = pointElement.dataset.seriesId;
+  const pointIndex = Number(pointElement.dataset.pointIndex);
+  const x = Number(pointElement.dataset.x);
+  const y = Number(pointElement.dataset.y);
+
+  if (!options.editable && !TSTimeSeriesChartConfig.editable) return;
+
+  const track = window.TSStore?.getTrack(seriesId);
+  if (!track) return;
+
+  const series = createSeriesFromTrack(track);
+  const point = series.points[pointIndex];
+
+  if (!point) return;
+
+  const newValue = prompt(
+    `값을 수정하세요\n현재 값: ${formatNumber(point.y, 4)}`,
+    String(point.y)
+  );
+
+  if (newValue === null) return;
+
+  const parsedValue = window.TSMathUtils
+    ? window.TSMathUtils.toNumber(newValue)
+    : Number(newValue);
+
+  if (!Number.isFinite(parsedValue)) {
+    alert("숫자 값을 입력해야 합니다.");
+    return;
+  }
+
+  updateTrackPointValue(track.id, point.rowIndex, parsedValue);
+}
+
+function handleMarkerClick(markerElement, options = {}) {
+  const trackId = markerElement.dataset.trackId;
+  const rowIndex = Number(markerElement.dataset.rowIndex);
+
+  const track = window.TSStore?.getTrack(trackId);
+  if (!track) return;
+
+  const row = track.data?.[rowIndex];
+
+  if (!row) return;
+
+  const targetColumn = getTargetColumn(track);
+  const currentValue = row[targetColumn];
+
+  const newValue = prompt(
+    `표시된 지점의 값을 수정하세요\n현재 값: ${currentValue}`,
+    String(currentValue ?? "")
+  );
+
+  if (newValue === null) return;
+
+  const parsedValue = window.TSMathUtils
+    ? window.TSMathUtils.toNumber(newValue)
+    : Number(newValue);
+
+  if (!Number.isFinite(parsedValue)) {
+    alert("숫자 값을 입력해야 합니다.");
+    return;
+  }
+
+  updateTrackPointValue(trackId, rowIndex, parsedValue);
+}
+
+function updateTrackPointValue(trackId, rowIndex, value) {
+  const track = window.TSStore?.getTrack(trackId);
+  if (!track) return;
+
+  const targetColumn = getTargetColumn(track);
+  if (!targetColumn) return;
+
+  const updatedRows = [...track.data];
+
+  updatedRows[rowIndex] = {
+    ...updatedRows[rowIndex],
+    [targetColumn]: value,
+    __edited: true
+  };
+
+  window.TSStore.commitTrackResult(trackId, {
+    data: updatedRows,
+    metadata: {
+      ...track.metadata,
+      lastEditedRowIndex: rowIndex,
+      lastEditedAt: new Date().toISOString()
+    },
+    result: {
+      ...(track.result || {}),
+      type: track.result?.type || "Time Series Edit",
+      messages: [`${rowIndex + 1}번째 데이터 값이 ${value}로 수정되었습니다.`]
+    }
+  });
+
+  if (window.TSLayout) {
+    window.TSLayout.dispatchStateChange("EDIT_TIME_SERIES_POINT");
+  }
+}
+
 /* =========================================================
-   전역 노출
-   ========================================================= */
+   7. Track / Column 보조
+========================================================= */
+
+function getTracksForRegion(regionId) {
+  const tracks = window.TSState?.tracks || [];
+
+  return tracks.filter(track => track.regionId === regionId);
+}
+
+function getDatetimeColumn(track) {
+  return (
+    track?.metadata?.datetimeColumn ||
+    window.TSState?.dataset?.datetimeColumn ||
+    null
+  );
+}
+
+function getTargetColumn(track) {
+  return (
+    track?.metadata?.targetColumn ||
+    window.TSState?.dataset?.targetColumn ||
+    null
+  );
+}
+
+function parseTrackDate(row, datetimeColumn) {
+  if (!row || !datetimeColumn) return null;
+
+  if (window.TSDateUtils) {
+    return window.TSDateUtils.parseDateValue(row[datetimeColumn]);
+  }
+
+  const date = new Date(row[datetimeColumn]);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function parseTrackValue(row, targetColumn) {
+  if (!row || !targetColumn) return NaN;
+
+  if (window.TSMathUtils) {
+    return window.TSMathUtils.toNumber(row[targetColumn]);
+  }
+
+  return Number(row[targetColumn]);
+}
+
+/* =========================================================
+   8. Fallback Chart
+========================================================= */
+
+function createFallbackLineChart(seriesList) {
+  return `
+    <div class="empty-chart">
+      ChartCore가 로드되지 않았습니다.
+    </div>
+  `;
+}
+
+function createEmptyTimeSeriesChartHTML() {
+  return `
+    <div class="empty-chart">
+      <div class="empty-chart-title">No Time Series Data</div>
+      <div class="empty-chart-sub">
+        Track에 표시할 수 있는 시계열 데이터가 없습니다.
+      </div>
+    </div>
+  `;
+}
+
+/* =========================================================
+   9. 최신 Track
+========================================================= */
+
+function getLatestTrack(tracks) {
+  if (!tracks || tracks.length === 0) return null;
+
+  return [...tracks].sort((a, b) => {
+    const timeA = new Date(a.updatedAt || a.createdAt || 0).getTime();
+    const timeB = new Date(b.updatedAt || b.createdAt || 0).getTime();
+
+    return timeB - timeA;
+  })[0];
+}
+
+/* =========================================================
+   10. 스타일 주입
+========================================================= */
+
+function injectTimeSeriesChartStyle() {
+  if (document.getElementById("ts-time-series-chart-style")) return;
+
+  const style = document.createElement("style");
+  style.id = "ts-time-series-chart-style";
+  style.textContent = `
+    .ts-chart-layer {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .ts-marker-overlay {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .ts-marker {
+      pointer-events: auto;
+      cursor: pointer;
+    }
+
+    .ts-marker circle {
+      fill: rgba(32,32,32,.94);
+      stroke-width: 1.4;
+    }
+
+    .ts-marker text {
+      fill: #f1f1f1;
+      font-size: 7px;
+      font-weight: 700;
+    }
+
+    .ts-marker.missing circle {
+      stroke: #b9a17d;
+    }
+
+    .ts-marker.outlier circle {
+      stroke: #c98282;
+    }
+
+    .ts-marker.edited circle {
+      stroke: #76a878;
+    }
+
+    .empty-chart {
+      height: 100%;
+      display: grid;
+      place-items: center;
+      align-content: center;
+      gap: 5px;
+      color: #9d9d9d;
+      font-size: 10px;
+      text-align: center;
+    }
+
+    .empty-chart-title {
+      color: #d5d5d5;
+      font-weight: 700;
+    }
+
+    .empty-chart-sub {
+      color: #8d8d8d;
+      font-size: 9px;
+    }
+  `;
+
+  document.head.appendChild(style);
+}
+
+/* =========================================================
+   11. 유틸
+========================================================= */
+
+function getDefaultColor(index) {
+  if (window.TSChartCore) {
+    return window.TSChartCore.getDefaultSeriesColor(index);
+  }
+
+  const colors = [
+    "#8d8d8d",
+    "#76a878",
+    "#9b8db7",
+    "#b49a72",
+    "#5b8fd6"
+  ];
+
+  return colors[index % colors.length];
+}
+
+function formatNumber(value, digits = 3) {
+  if (!Number.isFinite(value)) return "-";
+  return Number(value).toFixed(digits);
+}
+
+function shortText(text, maxLength = 18) {
+  const value = String(text ?? "");
+
+  if (value.length <= maxLength) return value;
+
+  return `${value.slice(0, maxLength)}…`;
+}
+
+function escapeHTML(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+/* =========================================================
+   12. 외부 접근용 객체
+========================================================= */
 
 window.TSTimeSeriesChart = {
-  renderTimeSeriesChart,
-  renderMultiTrackTimeSeriesChart,
-  renderRegionTimeSeriesChart,
-  renderAllRegionTimeSeriesCharts,
+  config: TSTimeSeriesChartConfig,
 
-  createTimeSeriesLayout,
-  createTimeSeriesTraceByTrackType,
-  tracksToTimeSeriesTraces,
+  createTimeSeriesChartForRegion,
+  createTimeSeriesChartFromTracks,
 
-  renderBeforeAfterChart,
-  renderOutlierChart,
-  renderMissingFilledChart,
+  createSeriesFromTrack,
+  createMultipleSeriesFromRows,
 
-  highlightSelectedTrackInChart,
-  bindTimeSeriesChartEvents,
+  createMarkerOverlayHTML,
+  attachTimeSeriesInteraction,
+
+  updateTrackPointValue,
+
+  getTracksForRegion,
+  getDatetimeColumn,
+  getTargetColumn,
+
+  injectTimeSeriesChartStyle
 };
+
+/* =========================================================
+   13. 자동 초기화
+========================================================= */
+
+document.addEventListener("DOMContentLoaded", () => {
+  injectTimeSeriesChartStyle();
+});
