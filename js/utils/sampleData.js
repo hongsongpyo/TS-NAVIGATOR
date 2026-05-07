@@ -2,7 +2,13 @@
    TS Navigator - sampleData.js
    샘플 시계열 데이터 생성 유틸
    ========================================================= */
+if (!window.TSDateUtils) {
+  throw new Error(
+    "TSDateUtils is not defined. dateUtils.js를 sampleData.js보다 먼저 불러와야 합니다."
+  );
+}
 
+const TSDateUtils = window.TSDateUtils;
 /* =========================================================
    기본 랜덤 함수
    ========================================================= */
