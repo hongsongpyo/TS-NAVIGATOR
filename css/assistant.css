@@ -1,425 +1,775 @@
 /* =========================================================
    TS Navigator - assistant.css
-   AI Assistant 팝업
-   ========================================================= */
+========================================================= */
 
 /* =========================================================
-   Assistant Root
-   ========================================================= */
+   ASSISTANT ROOT
+========================================================= */
 
-#aiAssistantRoot {
-  position: relative;
+#tsAssistantRoot {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
 
-  z-index: var(--z-assistant);
+  z-index: 95;
+
+  pointer-events: none;
+}
+
+#tsAssistantRoot * {
+  pointer-events: auto;
 }
 
 /* =========================================================
-   Assistant Panel
-   ========================================================= */
+   FLOATING BUTTON
+========================================================= */
 
-.assistant-panel {
-  position: fixed;
-
-  right: 28px;
-  bottom: 104px;
-
-  width: 380px;
-  height: min(620px, calc(100vh - 140px));
+.ai-floating-btn {
+  width: 54px;
+  height: 54px;
 
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 
-  border-radius: 26px;
+  border:
+    1px solid rgba(255,255,255,0.12);
+
+  border-radius: 50%;
+
+  background:
+    linear-gradient(
+      145deg,
+      #3d3d3d,
+      #242424
+    );
+
+  color: #f1f1f1;
+
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+
+  cursor: pointer;
+
+  box-shadow:
+    0 18px 44px rgba(0,0,0,0.42);
+
+  transition:
+    transform 0.16s ease,
+    background 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.ai-floating-btn:hover {
+  transform: translateY(-2px);
+
+  background:
+    linear-gradient(
+      145deg,
+      #4a4a4a,
+      #2d2d2d
+    );
+
+  border-color:
+    rgba(255,255,255,0.18);
+
+  box-shadow:
+    0 22px 52px rgba(0,0,0,0.5);
+}
+
+.ai-floating-btn.active {
+  background:
+    linear-gradient(
+      145deg,
+      #6f9f72,
+      #5d855f
+    );
+
+  box-shadow:
+    0 22px 54px rgba(118,168,120,0.24);
+}
+
+/* =========================================================
+   ASSISTANT PANEL
+========================================================= */
+
+.ai-panel {
+  position: absolute;
+  right: 0;
+  bottom: 66px;
+
+  width: 360px;
+  max-height: min(720px, calc(100vh - 120px));
+
+  display: grid;
+  grid-template-rows:
+    52px
+    auto
+    auto
+    1fr
+    auto;
+
+  border:
+    1px solid rgba(255,255,255,0.1);
+
+  border-radius: 20px;
 
   background:
     linear-gradient(
       180deg,
-      rgba(29, 33, 44, 0.98),
-      rgba(18, 21, 29, 0.98)
+      rgba(42,42,42,0.98),
+      rgba(28,28,28,0.98)
     );
 
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(18px);
 
   box-shadow:
-    0 24px 70px rgba(0, 0, 0, 0.42),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    0 28px 70px rgba(0,0,0,0.52);
 
   overflow: hidden;
 
-  z-index: var(--z-assistant);
-
-  animation: assistant-in 0.22s ease;
+  animation:
+    assistant-panel-in 0.18s ease;
 }
 
 /* =========================================================
-   Assistant Header
-   ========================================================= */
+   PANEL HEADER
+========================================================= */
 
-.assistant-header {
-  flex-shrink: 0;
-
-  min-height: 82px;
-
+.ai-panel-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
 
-  gap: 14px;
+  padding: 0 14px;
 
-  padding: 20px 20px 16px;
-
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom:
+    1px solid rgba(255,255,255,0.07);
 
   background:
     linear-gradient(
       180deg,
-      rgba(255, 255, 255, 0.035),
-      rgba(255, 255, 255, 0.01)
+      rgba(255,255,255,0.03),
+      rgba(255,255,255,0.012)
     );
 }
 
-.assistant-header h2 {
-  margin-top: 4px;
+.ai-panel-head strong {
+  display: block;
 
-  font-size: 20px;
+  color: #f1f1f1;
+
+  font-size: 12px;
   font-weight: 800;
+  letter-spacing: 0.04em;
 }
 
-.assistant-close-button {
-  width: 36px;
-  height: 36px;
+.ai-panel-head span {
+  display: block;
 
-  flex-shrink: 0;
+  margin-top: 3px;
 
-  border-radius: 14px;
+  color: #8f8f8f;
 
-  background: rgba(255, 255, 255, 0.045);
-  color: var(--color-text-muted);
+  font-size: 8px;
+  line-height: 1.4;
+}
 
-  font-size: 22px;
-  font-weight: 700;
+.ai-close {
+  width: 30px;
+  height: 30px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border:
+    1px solid rgba(255,255,255,0.06);
+
+  border-radius: 9px;
+
+  background:
+    rgba(255,255,255,0.035);
+
+  color: #d4d4d4;
+
+  font-size: 15px;
   line-height: 1;
 }
 
-.assistant-close-button:hover {
-  background: rgba(239, 68, 68, 0.14);
-  color: #ff9d9d;
+.ai-close:hover {
+  background:
+    rgba(184,106,106,0.16);
+
+  border-color:
+    rgba(184,106,106,0.22);
+
+  color: #f2b8b8;
 }
 
 /* =========================================================
-   Assistant Body
-   ========================================================= */
+   QUICK ACTIONS
+========================================================= */
 
-.assistant-body {
-  flex: 1;
+.ai-quick-actions {
+  display: grid;
+  gap: 7px;
 
-  min-height: 0;
+  padding: 12px;
+
+  border-bottom:
+    1px solid rgba(255,255,255,0.05);
+}
+
+.ai-quick-actions button {
+  height: 30px;
 
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 
-  gap: 12px;
+  border:
+    1px solid rgba(255,255,255,0.07);
 
-  padding: 16px;
+  border-radius: 10px;
+
+  background:
+    rgba(255,255,255,0.035);
+
+  color: #dddddd;
+
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+
+  transition:
+    background 0.14s ease,
+    border-color 0.14s ease,
+    transform 0.14s ease;
+}
+
+.ai-quick-actions button:hover {
+  background:
+    rgba(255,255,255,0.08);
+
+  border-color:
+    rgba(255,255,255,0.14);
+
+  transform: translateY(-1px);
+}
+
+/* =========================================================
+   CONTEXT BOX
+========================================================= */
+
+.ai-context-box {
+  margin: 0 12px 12px;
+
+  padding: 12px;
+
+  border:
+    1px solid rgba(255,255,255,0.07);
+
+  border-radius: 14px;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(0,0,0,0.14),
+      rgba(255,255,255,0.015)
+    );
+
+  color: #cfcfcf;
+
+  font-size: 9px;
+  line-height: 1.7;
+}
+
+.ai-context-box strong {
+  color: #f1f1f1;
+
+  font-size: 10px;
+}
+
+/* =========================================================
+   MESSAGE LIST
+========================================================= */
+
+.ai-message-list {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+
+  padding: 0 12px 12px;
 
   overflow-y: auto;
 }
 
 /* =========================================================
-   Message
-   ========================================================= */
+   MESSAGE
+========================================================= */
 
-.assistant-message {
-  display: flex;
-  flex-direction: column;
+.ai-message {
+  padding: 12px;
 
-  gap: 6px;
+  border:
+    1px solid rgba(255,255,255,0.06);
 
-  max-width: 92%;
+  border-radius: 14px;
+
+  font-size: 9px;
+  line-height: 1.7;
+
+  animation:
+    assistant-message-in 0.16s ease;
 }
 
-.assistant-message.user {
-  align-self: flex-end;
+.ai-message.user {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(118,168,120,0.12),
+      rgba(118,168,120,0.05)
+    );
+
+  border-color:
+    rgba(118,168,120,0.18);
 }
 
-.assistant-message.assistant {
-  align-self: flex-start;
+.ai-message.assistant {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(155,141,183,0.12),
+      rgba(155,141,183,0.05)
+    );
+
+  border-color:
+    rgba(155,141,183,0.18);
 }
 
-.assistant-message-role {
-  color: var(--color-text-soft);
+.ai-message-role {
+  margin-bottom: 7px;
 
-  font-size: 10px;
+  color: #f1f1f1;
+
+  font-size: 8px;
   font-weight: 800;
   letter-spacing: 0.08em;
-
   text-transform: uppercase;
 }
 
-.assistant-message.user .assistant-message-role {
-  text-align: right;
-}
+.ai-message-body {
+  color: #d7d7d7;
 
-.assistant-message pre {
-  margin: 0;
-
-  white-space: pre-wrap;
-  word-break: keep-all;
-  overflow-wrap: break-word;
-
-  padding: 12px 14px;
-
-  border-radius: 16px;
-
-  font-family: var(--font-family);
-  font-size: 12px;
-  line-height: 1.65;
-}
-
-.assistant-message.assistant pre {
-  background: rgba(255, 255, 255, 0.045);
-
-  color: var(--color-text);
-
-  border: 1px solid rgba(255, 255, 255, 0.045);
-
-  border-top-left-radius: 6px;
-}
-
-.assistant-message.user pre {
-  background:
-    linear-gradient(
-      135deg,
-      rgba(91, 140, 255, 0.22),
-      rgba(124, 77, 255, 0.18)
-    );
-
-  color: #dbe5ff;
-
-  border: 1px solid rgba(91, 140, 255, 0.18);
-
-  border-top-right-radius: 6px;
+  word-break: break-word;
 }
 
 /* =========================================================
-   Quick Actions
-   ========================================================= */
+   EMPTY MESSAGE
+========================================================= */
 
-.assistant-quick-actions {
-  flex-shrink: 0;
-
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-
-  gap: 8px;
-
-  padding: 12px 16px;
-
-  border-top: 1px solid rgba(255, 255, 255, 0.055);
-
-  background: rgba(10, 12, 18, 0.24);
-}
-
-.assistant-quick-actions button {
-  min-height: 34px;
-
-  border-radius: 12px;
-
-  background: rgba(255, 255, 255, 0.045);
-  color: var(--color-text-muted);
-
-  font-size: 11px;
-  font-weight: 800;
-
-  border: 1px solid rgba(255, 255, 255, 0.045);
-}
-
-.assistant-quick-actions button:hover {
-  background: rgba(91, 140, 255, 0.14);
-  color: #c6d6ff;
-
-  border-color: rgba(91, 140, 255, 0.18);
-}
-
-/* =========================================================
-   Input
-   ========================================================= */
-
-.assistant-input-row {
-  flex-shrink: 0;
+.ai-empty-message {
+  min-height: 120px;
 
   display: flex;
-  align-items: flex-end;
-
-  gap: 10px;
-
-  padding: 14px 16px 16px;
-
-  border-top: 1px solid rgba(255, 255, 255, 0.055);
-
-  background: rgba(10, 12, 18, 0.34);
-}
-
-.assistant-input-row textarea {
-  flex: 1;
-
-  min-height: 48px;
-  max-height: 120px;
-
-  resize: vertical;
-
-  border-radius: 16px;
-
-  font-size: 12px;
-  line-height: 1.6;
-
-  background: rgba(255, 255, 255, 0.045);
-
-  border-color: rgba(255, 255, 255, 0.08);
-}
-
-.assistant-input-row textarea::placeholder {
-  color: var(--color-text-soft);
-}
-
-.assistant-input-row button {
-  width: 58px;
-  min-height: 48px;
-
-  flex-shrink: 0;
-
-  border-radius: 16px;
-
-  background:
-    linear-gradient(
-      135deg,
-      var(--color-primary),
-      #7c4dff
-    );
-
-  color: white;
-
-  font-size: 12px;
-  font-weight: 800;
-
-  box-shadow:
-    0 10px 22px rgba(91, 140, 255, 0.18);
-}
-
-.assistant-input-row button:hover {
-  transform: translateY(-1px);
-
-  box-shadow:
-    0 14px 28px rgba(91, 140, 255, 0.24);
-}
-
-/* =========================================================
-   Scrollbar
-   ========================================================= */
-
-.assistant-body::-webkit-scrollbar {
-  width: 8px;
-}
-
-.assistant-body::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-
-  border-radius: 999px;
-}
-
-.assistant-body::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.16);
-}
-
-/* =========================================================
-   Floating Button Override
-   ========================================================= */
-
-.assistant-floating-button {
-  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
 
-  letter-spacing: 0.02em;
-}
+  padding: 16px;
 
-.assistant-floating-button::before {
-  content: "";
+  border:
+    1px dashed rgba(255,255,255,0.08);
 
-  position: absolute;
-  inset: -5px;
+  border-radius: 14px;
 
-  border-radius: inherit;
+  color: #8d8d8d;
 
-  background: rgba(91, 140, 255, 0.16);
-
-  z-index: -1;
-
-  animation: assistant-pulse 1.8s ease-in-out infinite;
+  font-size: 10px;
+  line-height: 1.8;
+  text-align: center;
 }
 
 /* =========================================================
-   Animation
-   ========================================================= */
+   INPUT AREA
+========================================================= */
 
-@keyframes assistant-in {
+.ai-input-area {
+  padding: 12px;
+
+  border-top:
+    1px solid rgba(255,255,255,0.06);
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,0.015),
+      rgba(255,255,255,0.008)
+    );
+}
+
+.ai-textarea {
+  width: 100%;
+  min-height: 88px;
+  max-height: 180px;
+
+  padding: 10px 12px;
+
+  border:
+    1px solid rgba(255,255,255,0.08);
+
+  border-radius: 14px;
+
+  background:
+    rgba(0,0,0,0.18);
+
+  color: #f1f1f1;
+
+  font-size: 10px;
+  line-height: 1.65;
+
+  resize: vertical;
+
+  transition:
+    border-color 0.14s ease,
+    background 0.14s ease;
+}
+
+.ai-textarea:focus {
+  border-color:
+    rgba(118,168,120,0.42);
+
+  background:
+    rgba(0,0,0,0.26);
+}
+
+.ai-textarea::placeholder {
+  color: #7f7f7f;
+}
+
+/* =========================================================
+   INPUT ACTIONS
+========================================================= */
+
+.ai-input-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+
+  margin-top: 10px;
+}
+
+.ai-input-actions button {
+  min-width: 74px;
+  height: 34px;
+
+  padding: 0 12px;
+
+  border:
+    1px solid rgba(255,255,255,0.08);
+
+  border-radius: 11px;
+
+  background:
+    rgba(255,255,255,0.04);
+
+  color: #d8d8d8;
+
+  font-size: 10px;
+  font-weight: 700;
+
+  transition:
+    background 0.14s ease,
+    border-color 0.14s ease,
+    transform 0.14s ease;
+}
+
+.ai-input-actions button:hover {
+  transform: translateY(-1px);
+
+  background:
+    rgba(255,255,255,0.08);
+
+  border-color:
+    rgba(255,255,255,0.14);
+}
+
+.ai-input-actions button.primary {
+  background:
+    linear-gradient(
+      145deg,
+      #6f9f72,
+      #5d855f
+    );
+
+  color: #ffffff;
+
+  box-shadow:
+    0 10px 24px rgba(118,168,120,0.18);
+}
+
+.ai-input-actions button.primary:hover {
+  background:
+    linear-gradient(
+      145deg,
+      #7caf7f,
+      #68946b
+    );
+}
+
+/* =========================================================
+   TOAST
+========================================================= */
+
+.assistant-toast {
+  position: fixed;
+  right: 22px;
+  bottom: 88px;
+
+  min-width: 120px;
+
+  padding: 10px 14px;
+
+  border:
+    1px solid rgba(255,255,255,0.1);
+
+  border-radius: 999px;
+
+  background:
+    rgba(28,28,28,0.94);
+
+  backdrop-filter: blur(12px);
+
+  color: #f1f1f1;
+
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+
+  box-shadow:
+    0 16px 36px rgba(0,0,0,0.34);
+
+  opacity: 0;
+
+  transform:
+    translateY(8px);
+
+  pointer-events: none;
+
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
+
+  z-index: 120;
+}
+
+.assistant-toast.show {
+  opacity: 1;
+
+  transform:
+    translateY(0);
+}
+
+/* =========================================================
+   COPY BLOCK
+========================================================= */
+
+.ai-copy-block {
+  position: relative;
+
+  margin-top: 10px;
+
+  padding: 12px;
+
+  border:
+    1px solid rgba(255,255,255,0.06);
+
+  border-radius: 12px;
+
+  background:
+    rgba(0,0,0,0.18);
+
+  overflow-x: auto;
+}
+
+.ai-copy-block pre {
+  color: #d8d8d8;
+
+  font-size: 9px;
+  line-height: 1.65;
+
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ai-copy-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+
+  height: 24px;
+
+  padding: 0 8px;
+
+  border:
+    1px solid rgba(255,255,255,0.08);
+
+  border-radius: 8px;
+
+  background:
+    rgba(255,255,255,0.04);
+
+  color: #d8d8d8;
+
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.ai-copy-btn:hover {
+  background:
+    rgba(255,255,255,0.08);
+}
+
+/* =========================================================
+   SUGGESTION CHIP
+========================================================= */
+
+.ai-suggestion-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+
+  margin-top: 10px;
+}
+
+.ai-suggestion-chip {
+  min-height: 24px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0 10px;
+
+  border:
+    1px solid rgba(255,255,255,0.07);
+
+  border-radius: 999px;
+
+  background:
+    rgba(255,255,255,0.04);
+
+  color: #dcdcdc;
+
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+
+  cursor: pointer;
+
+  transition:
+    background 0.14s ease,
+    border-color 0.14s ease,
+    transform 0.14s ease;
+}
+
+.ai-suggestion-chip:hover {
+  background:
+    rgba(255,255,255,0.08);
+
+  border-color:
+    rgba(255,255,255,0.14);
+
+  transform: translateY(-1px);
+}
+
+/* =========================================================
+   SCROLLBAR
+========================================================= */
+
+.ai-message-list::-webkit-scrollbar {
+  width: 7px;
+}
+
+.ai-message-list::-webkit-scrollbar-track {
+  background:
+    rgba(255,255,255,0.015);
+}
+
+.ai-message-list::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+
+  background:
+    rgba(255,255,255,0.1);
+}
+
+.ai-message-list::-webkit-scrollbar-thumb:hover {
+  background:
+    rgba(255,255,255,0.18);
+}
+
+/* =========================================================
+   ANIMATION
+========================================================= */
+
+@keyframes assistant-panel-in {
   from {
     opacity: 0;
-    transform: translateY(12px) scale(0.98);
+
+    transform:
+      translateY(8px)
+      scale(0.985);
   }
 
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+
+    transform:
+      translateY(0)
+      scale(1);
   }
 }
 
-@keyframes assistant-pulse {
-  0% {
-    transform: scale(0.92);
-    opacity: 0.6;
+@keyframes assistant-message-in {
+  from {
+    opacity: 0;
+
+    transform:
+      translateY(4px);
   }
 
-  70% {
-    transform: scale(1.18);
-    opacity: 0;
-  }
+  to {
+    opacity: 1;
 
-  100% {
-    transform: scale(0.92);
-    opacity: 0;
+    transform:
+      translateY(0);
   }
 }
 
 /* =========================================================
-   Responsive
-   ========================================================= */
+   RESPONSIVE
+========================================================= */
 
-@media (max-width: 640px) {
-  .assistant-panel {
+@media (max-width: 760px) {
+  #tsAssistantRoot {
     right: 12px;
-    bottom: 86px;
-
-    width: calc(100vw - 24px);
-    height: min(620px, calc(100vh - 110px));
-
-    border-radius: 22px;
+    bottom: 12px;
   }
 
-  .assistant-header {
-    padding: 18px;
+  .ai-panel {
+    right: 0;
+
+    width: min(92vw, 360px);
+
+    max-height:
+      calc(100vh - 100px);
   }
 
-  .assistant-quick-actions {
-    grid-template-columns: 1fr;
-  }
-
-  .assistant-input-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .assistant-input-row button {
-    width: 100%;
+  .assistant-toast {
+    right: 12px;
+    bottom: 82px;
   }
 }

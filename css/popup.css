@@ -1,384 +1,755 @@
 /* =========================================================
    TS Navigator - popup.css
-   Process Popup
-   ========================================================= */
+========================================================= */
 
 /* =========================================================
-   Popup Root
-   ========================================================= */
+   POPUP ROOT
+========================================================= */
 
-#processPopupRoot {
-  position: relative;
+#tsPopupRoot {
+  position: fixed;
+  inset: 0;
 
-  z-index: var(--z-popup);
+  z-index: 70;
+
+  pointer-events: none;
+}
+
+#tsPopupRoot:empty {
+  display: none;
 }
 
 /* =========================================================
-   Process Popup
-   ========================================================= */
+   ADD ANALYSIS MENU
+========================================================= */
 
-.process-popup {
-  width: min(760px, calc(100vw - 40px));
-  max-height: calc(100vh - 56px);
+.popup-menu {
+  position: fixed;
 
-  display: flex;
-  flex-direction: column;
+  width: 260px;
 
-  border-radius: 26px;
+  border:
+    1px solid rgba(255,255,255,0.1);
+
+  border-radius: 16px;
 
   background:
     linear-gradient(
       180deg,
-      rgba(29, 33, 44, 0.98),
-      rgba(18, 21, 29, 0.98)
+      rgba(45,45,45,0.98),
+      rgba(32,32,32,0.98)
     );
 
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(14px);
 
   box-shadow:
-    0 28px 80px rgba(0, 0, 0, 0.46),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    0 22px 58px rgba(0,0,0,0.48);
 
   overflow: hidden;
 
-  animation: popup-in 0.22s ease;
+  pointer-events: auto;
+
+  animation:
+    popup-menu-in 0.16s ease;
 }
 
 /* =========================================================
-   Header
-   ========================================================= */
+   POPUP TITLE
+========================================================= */
 
-.process-popup-header {
-  flex-shrink: 0;
-
-  min-height: 88px;
+.popup-title {
+  height: 44px;
 
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
 
-  gap: 20px;
+  padding: 0 12px;
 
-  padding: 22px 24px 18px;
+  border-bottom:
+    1px solid rgba(255,255,255,0.07);
 
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  color: #f1f1f1;
 
-  background:
-    linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 0.035),
-      rgba(255, 255, 255, 0.01)
-    );
-}
-
-.process-popup-header h2 {
-  margin-top: 4px;
-
-  font-size: 22px;
+  font-size: 11px;
   font-weight: 800;
+  letter-spacing: 0.04em;
 }
 
-.process-popup-header span {
-  display: inline-block;
-
-  margin-top: 6px;
-
-  color: var(--color-text-soft);
-
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.popup-close-button {
-  width: 38px;
-  height: 38px;
-
-  flex-shrink: 0;
-
-  border-radius: 14px;
-
-  background: rgba(255, 255, 255, 0.045);
-  color: var(--color-text-muted);
-
-  font-size: 22px;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.popup-close-button:hover {
-  background: rgba(239, 68, 68, 0.14);
-  color: #ff9d9d;
-}
-
-/* =========================================================
-   Body
-   ========================================================= */
-
-.process-popup-body {
-  flex: 1;
-
-  min-height: 0;
-
-  padding: 24px;
-
-  overflow-y: auto;
-}
-
-/* =========================================================
-   Popup Form Grid
-   ========================================================= */
-
-.popup-form-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-
-  gap: 18px;
-}
-
-.popup-field {
-  display: flex;
-  flex-direction: column;
-
-  gap: 8px;
-}
-
-.popup-field span {
-  color: var(--color-text-muted);
-
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.popup-field input,
-.popup-field select {
-  min-height: 44px;
-
-  border-radius: 14px;
-
-  background: rgba(255, 255, 255, 0.045);
-
-  border-color: rgba(255, 255, 255, 0.08);
-}
-
-.popup-field input:focus,
-.popup-field select:focus {
-  background: rgba(255, 255, 255, 0.07);
-
-  border-color: var(--color-primary);
-}
-
-/* =========================================================
-   Guide Box
-   ========================================================= */
-
-.popup-guide-box {
-  margin-top: 22px;
-
-  padding: 16px 18px;
-
-  border-radius: 18px;
-
-  background: rgba(91, 140, 255, 0.11);
-
-  border: 1px solid rgba(91, 140, 255, 0.16);
-
-  color: #c6d6ff;
-
-  font-size: 13px;
-  line-height: 1.7;
-}
-
-/* =========================================================
-   Empty
-   ========================================================= */
-
-.popup-empty {
-  min-height: 220px;
+.popup-close {
+  width: 26px;
+  height: 26px;
 
   display: flex;
   align-items: center;
   justify-content: center;
 
-  color: var(--color-text-soft);
+  border:
+    1px solid rgba(255,255,255,0.06);
+
+  border-radius: 8px;
+
+  background:
+    rgba(255,255,255,0.035);
+
+  color: #d8d8d8;
+
+  font-size: 14px;
+  line-height: 1;
+}
+
+.popup-close:hover {
+  background:
+    rgba(184,106,106,0.18);
+
+  border-color:
+    rgba(184,106,106,0.25);
+
+  color: #f2b8b8;
+}
+
+/* =========================================================
+   POPUP SECTION
+========================================================= */
+
+.popup-section {
+  padding: 10px;
+
+  border-bottom:
+    1px solid rgba(255,255,255,0.045);
+}
+
+.popup-section:last-child {
+  border-bottom: none;
+}
+
+.popup-section-label {
+  margin: 2px 2px 8px;
+
+  color: #8f8f8f;
+
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+/* =========================================================
+   MENU ITEM
+========================================================= */
+
+.menu-item {
+  height: 34px;
+
+  display: grid;
+  grid-template-columns: 24px 1fr 16px;
+  align-items: center;
+  gap: 8px;
+
+  padding: 0 8px;
+
+  border-radius: 10px;
+
+  color: #dcdcdc;
+
+  font-size: 10px;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  transition:
+    background 0.14s ease,
+    color 0.14s ease,
+    transform 0.14s ease;
+}
+
+.menu-item:hover {
+  background:
+    rgba(255,255,255,0.07);
+
+  color: #ffffff;
+
+  transform: translateX(2px);
+}
+
+.menu-icon {
+  width: 22px;
+  height: 22px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border:
+    1px solid rgba(255,255,255,0.06);
+
+  border-radius: 7px;
+
+  background:
+    rgba(255,255,255,0.035);
+
+  color: #f1f1f1;
+
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.menu-arrow {
+  color: #8f8f8f;
 
   font-size: 14px;
 }
 
 /* =========================================================
-   Footer
-   ========================================================= */
+   PARAMETER POPUP
+========================================================= */
 
-.process-popup-footer {
-  flex-shrink: 0;
+.analysis-popup {
+  position: fixed;
+
+  width: 330px;
+  max-height: min(620px, calc(100vh - 32px));
 
   display: flex;
-  align-items: center;
-  justify-content: flex-end;
+  flex-direction: column;
 
-  gap: 12px;
+  border:
+    1px solid rgba(255,255,255,0.1);
 
-  padding: 18px 24px;
-
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-
-  background: rgba(10, 12, 18, 0.36);
-}
-
-.popup-footer-button {
-  min-width: 110px;
-  min-height: 44px;
-
-  padding: 0 18px;
-
-  border-radius: 999px;
-
-  background: rgba(255, 255, 255, 0.055);
-  color: var(--color-text);
-
-  font-size: 13px;
-  font-weight: 700;
-
-  border: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.popup-footer-button:hover {
-  background: rgba(255, 255, 255, 0.09);
-}
-
-.popup-footer-button.primary {
-  min-width: 172px;
+  border-radius: 16px;
 
   background:
     linear-gradient(
-      135deg,
-      var(--color-primary),
-      #7c4dff
+      180deg,
+      rgba(45,45,45,0.98),
+      rgba(31,31,31,0.98)
     );
 
-  color: white;
-
-  border-color: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(14px);
 
   box-shadow:
-    0 12px 28px rgba(91, 140, 255, 0.2);
+    0 22px 58px rgba(0,0,0,0.48);
+
+  overflow: hidden;
+
+  pointer-events: auto;
+
+  animation:
+    popup-menu-in 0.16s ease;
 }
 
-.popup-footer-button.primary:hover {
+.analysis-popup-head {
+  height: 46px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 0 12px;
+
+  border-bottom:
+    1px solid rgba(255,255,255,0.07);
+
+  color: #f1f1f1;
+
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+
+  flex-shrink: 0;
+}
+
+.analysis-popup-body {
+  flex: 1;
+
+  display: grid;
+  gap: 10px;
+
+  padding: 12px;
+
+  overflow-y: auto;
+}
+
+/* =========================================================
+   PARAMETER ROW
+========================================================= */
+
+.param-row {
+  display: grid;
+  grid-template-columns: 84px 1fr;
+  align-items: center;
+  gap: 10px;
+
+  min-height: 34px;
+}
+
+.param-row label {
+  color: #9f9f9f;
+
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.param-row input,
+.param-row select {
+  width: 100%;
+  height: 32px;
+
+  padding: 0 9px;
+
+  border:
+    1px solid rgba(255,255,255,0.08);
+
+  border-radius: 9px;
+
+  background:
+    rgba(0,0,0,0.18);
+
+  color: #eeeeee;
+
+  font-size: 10px;
+
+  transition:
+    border-color 0.14s ease,
+    background 0.14s ease;
+}
+
+.param-row input:focus,
+.param-row select:focus {
+  border-color:
+    rgba(118,168,120,0.46);
+
+  background:
+    rgba(0,0,0,0.26);
+}
+
+.param-row select option {
+  background: #282828;
+  color: #eeeeee;
+}
+
+/* =========================================================
+   RESULT BOX
+========================================================= */
+
+.analysis-popup .result-box {
+  margin-top: 2px;
+
+  padding: 11px;
+
+  border:
+    1px solid rgba(255,255,255,0.07);
+
+  border-radius: 12px;
+
+  background:
+    rgba(0,0,0,0.14);
+
+  color: #cfcfcf;
+
+  font-size: 9px;
+  line-height: 1.65;
+}
+
+.analysis-popup .result-box strong {
+  color: #f1f1f1;
+
+  font-size: 10px;
+}
+
+/* =========================================================
+   APPLY BUTTON
+========================================================= */
+
+.apply-btn {
+  width: 100%;
+  height: 38px;
+
+  margin-top: 2px;
+
+  border:
+    1px solid rgba(255,255,255,0.1);
+
+  border-radius: 12px;
+
+  background:
+    linear-gradient(
+      145deg,
+      #6f9f72,
+      #5d855f
+    );
+
+  color: #ffffff;
+
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+
+  box-shadow:
+    0 10px 24px rgba(118,168,120,0.18);
+
+  transition:
+    transform 0.14s ease,
+    background 0.14s ease,
+    box-shadow 0.14s ease;
+}
+
+.apply-btn:hover {
   transform: translateY(-1px);
 
+  background:
+    linear-gradient(
+      145deg,
+      #7caf7f,
+      #68946b
+    );
+
   box-shadow:
-    0 16px 34px rgba(91, 140, 255, 0.25);
+    0 14px 30px rgba(118,168,120,0.24);
 }
 
 /* =========================================================
-   Backdrop Override
-   ========================================================= */
+   REGION SETTING POPUP
+========================================================= */
 
-.popup-backdrop {
-  padding: 28px;
-
-  backdrop-filter: blur(12px);
-
-  animation: backdrop-in 0.18s ease;
+.analysis-popup[data-popup="region-setting"] {
+  width: 300px;
 }
 
 /* =========================================================
-   Scrollbar
-   ========================================================= */
+   INLINE PARAMETER GROUPS
+========================================================= */
 
-.process-popup-body::-webkit-scrollbar {
-  width: 8px;
+.param-group {
+  display: grid;
+  gap: 8px;
+
+  padding: 10px;
+
+  border:
+    1px solid rgba(255,255,255,0.055);
+
+  border-radius: 12px;
+
+  background:
+    rgba(255,255,255,0.018);
 }
 
-.process-popup-body::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+.param-group-title {
+  color: #f1f1f1;
+
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.param-help {
+  color: #8f8f8f;
+
+  font-size: 8px;
+  line-height: 1.5;
+}
+
+/* =========================================================
+   CHECK / TOGGLE PARAM
+========================================================= */
+
+.param-check-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  min-height: 32px;
+
+  padding: 0 2px;
+}
+
+.param-check-row span {
+  color: #cfcfcf;
+
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.param-check-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+
+  accent-color: #76a878;
+}
+
+/* =========================================================
+   POPUP BADGE
+========================================================= */
+
+.popup-badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.popup-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 22px;
+
+  padding: 0 8px;
 
   border-radius: 999px;
+
+  background:
+    rgba(255,255,255,0.055);
+
+  color: #d8d8d8;
+
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
 }
 
-.process-popup-body::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.16);
+.popup-badge.green {
+  background:
+    rgba(118,168,120,0.16);
+
+  color: #c9edca;
+}
+
+.popup-badge.purple {
+  background:
+    rgba(155,141,183,0.16);
+
+  color: #ddd4f1;
+}
+
+.popup-badge.amber {
+  background:
+    rgba(180,154,114,0.16);
+
+  color: #ead9bc;
 }
 
 /* =========================================================
-   Animation
-   ========================================================= */
+   POPUP TABLE
+========================================================= */
 
-@keyframes popup-in {
+.popup-table {
+  width: 100%;
+
+  border-collapse: collapse;
+
+  overflow: hidden;
+
+  border-radius: 10px;
+
+  font-size: 9px;
+}
+
+.popup-table th,
+.popup-table td {
+  padding: 7px 8px;
+
+  border-bottom:
+    1px solid rgba(255,255,255,0.055);
+
+  text-align: left;
+  white-space: nowrap;
+}
+
+.popup-table th {
+  color: #f1f1f1;
+
+  background:
+    rgba(255,255,255,0.04);
+
+  font-weight: 800;
+}
+
+.popup-table td {
+  color: #cfcfcf;
+}
+
+.popup-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* =========================================================
+   MINI RESULT LIST
+========================================================= */
+
+.popup-result-list {
+  display: grid;
+  gap: 7px;
+}
+
+.popup-result-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+
+  min-height: 28px;
+
+  padding: 0 9px;
+
+  border:
+    1px solid rgba(255,255,255,0.055);
+
+  border-radius: 9px;
+
+  background:
+    rgba(255,255,255,0.02);
+}
+
+.popup-result-label {
+  color: #9f9f9f;
+
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.popup-result-value {
+  color: #f1f1f1;
+
+  font-size: 9px;
+  font-weight: 800;
+}
+
+/* =========================================================
+   LEGACY FULL POPUP SUPPORT
+========================================================= */
+
+.analysis-popup-layer {
+  position: fixed;
+  inset: 0;
+
+  z-index: 90;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background:
+    rgba(10,10,10,0.54);
+
+  backdrop-filter: blur(10px);
+}
+
+.analysis-popup-layer.hidden {
+  display: none;
+}
+
+.analysis-popup-layer > .analysis-popup {
+  position: relative;
+
+  width: min(860px, 92vw);
+  max-height: min(700px, 88vh);
+}
+
+/* =========================================================
+   EMPTY / ERROR
+========================================================= */
+
+.popup-empty,
+.popup-error {
+  display: grid;
+  place-items: center;
+
+  min-height: 86px;
+
+  padding: 12px;
+
+  border:
+    1px dashed rgba(255,255,255,0.09);
+
+  border-radius: 12px;
+
+  color: #8f8f8f;
+
+  font-size: 10px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.popup-error {
+  border-color:
+    rgba(184,106,106,0.28);
+
+  background:
+    rgba(184,106,106,0.08);
+
+  color: #f0b8b8;
+}
+
+/* =========================================================
+   SCROLLBAR
+========================================================= */
+
+.analysis-popup-body::-webkit-scrollbar {
+  width: 7px;
+}
+
+.analysis-popup-body::-webkit-scrollbar-track {
+  background:
+    rgba(255,255,255,0.015);
+}
+
+.analysis-popup-body::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+
+  background:
+    rgba(255,255,255,0.1);
+}
+
+.analysis-popup-body::-webkit-scrollbar-thumb:hover {
+  background:
+    rgba(255,255,255,0.18);
+}
+
+/* =========================================================
+   ANIMATION
+========================================================= */
+
+@keyframes popup-menu-in {
   from {
     opacity: 0;
-    transform: translateY(10px) scale(0.98);
+    transform:
+      translateY(6px)
+      scale(0.985);
   }
 
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes backdrop-in {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
+    transform:
+      translateY(0)
+      scale(1);
   }
 }
 
 /* =========================================================
-   Responsive
-   ========================================================= */
+   RESPONSIVE
+========================================================= */
 
 @media (max-width: 760px) {
-  .process-popup {
-    width: calc(100vw - 24px);
-    max-height: calc(100vh - 24px);
+  .popup-menu,
+  .analysis-popup {
+    left: 12px !important;
+    right: 12px;
+    top: 70px !important;
 
-    border-radius: 22px;
+    width: auto;
+    max-height: calc(100vh - 90px);
   }
 
-  .process-popup-header {
-    padding: 18px;
-  }
-
-  .process-popup-body {
-    padding: 18px;
-  }
-
-  .popup-form-grid {
+  .param-row {
     grid-template-columns: 1fr;
+    gap: 5px;
   }
 
-  .process-popup-footer {
-    padding: 16px 18px;
-
-    flex-direction: column-reverse;
-  }
-
-  .popup-footer-button {
-    width: 100%;
-  }
-}
-
-@media (max-width: 480px) {
-  .popup-backdrop {
-    padding: 12px;
-  }
-
-  .process-popup-header {
-    min-height: auto;
-
-    flex-direction: column;
-
-    gap: 14px;
-  }
-
-  .popup-close-button {
-    align-self: flex-end;
-  }
-
-  .process-popup-header h2 {
-    font-size: 20px;
+  .analysis-popup-layer > .analysis-popup {
+    width: 94vw;
   }
 }
