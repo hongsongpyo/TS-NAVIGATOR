@@ -1,0 +1,61 @@
+<!-- TS Navigator/index.html -->
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TS Navigator</title>
+
+  <link rel="stylesheet" href="./css/base.css" />
+  <link rel="stylesheet" href="./css/home.css" />
+</head>
+
+<body>
+  <main class="home-page">
+    <header class="home-header">
+      <div></div>
+      <div class="home-title">
+        <h1>TS Navigator</h1>
+        <p>Made by Songpyo Hong</p>
+      </div>
+    </header>
+
+    <section class="upload-section">
+      <div class="upload-card">
+        <div class="upload-info">
+          <p class="label">Time-Series Forecasting Web App</p>
+          <h2>CSV 시계열 데이터를 업로드하세요</h2>
+          <p class="description">
+            단변량 시계열 CSV 파일을 업로드하면 전처리, 시각화, 예측 모델 설정,
+            성능 평가까지 하나의 Workspace에서 진행할 수 있습니다.
+          </p>
+        </div>
+
+        <div class="upload-box" id="dropArea">
+          <input type="file" id="csvInput" accept=".csv" hidden />
+
+          <div class="upload-icon">＋</div>
+          <h3>CSV 파일 업로드</h3>
+          <p>파일을 드래그하거나 클릭해서 업로드하세요.</p>
+
+          <button type="button" class="primary-button" id="uploadButton">
+            파일 선택
+          </button>
+        </div>
+
+        <div class="upload-guide">
+          <h4>지원 데이터 형식</h4>
+          <ul>
+            <li>단변량 시계열 CSV</li>
+            <li>날짜/시간 컬럼 1개 이상 포함 권장</li>
+            <li>수요, 매출, 주가, 센서값 등 숫자형 값 컬럼 포함</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="./js/app.js"></script>
+  <script src="./js/upload.js"></script>
+</body>
+</html>

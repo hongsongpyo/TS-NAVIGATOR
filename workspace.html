@@ -1,0 +1,517 @@
+<!-- TS Navigator/workspace.html -->
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>TS Navigator Workspace</title>
+
+  <link rel="stylesheet" href="./css/base.css" />
+  <link rel="stylesheet" href="./css/workspace.css" />
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+  <main class="workspace-page">
+    <aside class="workspace-sidebar">
+      <div class="sidebar-header">
+        <button type="button" class="back-button" id="backHomeButton">
+          Home
+        </button>
+
+        <div>
+          <h1>TS Navigator</h1>
+          <p>Time-Series Workspace</p>
+        </div>
+      </div>
+
+      <section class="file-summary panel-card">
+        <span class="panel-label">Uploaded File</span>
+        <h2 id="uploadedFileName">-</h2>
+        <p id="uploadedFileSummary">데이터 정보를 불러오는 중입니다.</p>
+      </section>
+
+      <section class="control-group">
+        <button type="button" class="accordion-button active" data-accordion="dataSetting">
+          데이터 설정
+        </button>
+
+        <div class="accordion-content active" id="dataSetting">
+          <label class="form-label">
+            날짜/시간 컬럼
+            <select id="dateColumnSelect"></select>
+          </label>
+
+          <label class="form-label">
+            값 컬럼
+            <select id="valueColumnSelect"></select>
+          </label>
+
+          <button type="button" class="secondary-button full-width" id="applyColumnButton">
+            컬럼 설정 적용
+          </button>
+        </div>
+      </section>
+
+      <section class="control-group">
+        <button type="button" class="accordion-button" data-accordion="preprocessingSetting">
+          전처리 설정
+        </button>
+
+        <div class="accordion-content" id="preprocessingSetting">
+          <div class="setting-row">
+            <div>
+              <h3>결측값 처리</h3>
+              <p>시계열 보간 또는 이전값 기준으로 결측값을 보정합니다.</p>
+            </div>
+            <button type="button" class="mini-button" data-modal-target="missingModal">
+              설정
+            </button>
+          </div>
+
+          <div class="setting-row">
+            <div>
+              <h3>이상치 처리</h3>
+              <p>IQR 또는 Z-score 기준으로 비정상 값을 탐지합니다.</p>
+            </div>
+            <button type="button" class="mini-button" data-modal-target="outlierModal">
+              설정
+            </button>
+          </div>
+
+          <div class="setting-row">
+            <div>
+              <h3>리샘플링</h3>
+              <p>일, 주, 월 단위로 시계열 주기를 재구성합니다.</p>
+            </div>
+            <button type="button" class="mini-button" data-modal-target="resamplingModal">
+              설정
+            </button>
+          </div>
+
+          <div class="setting-row">
+            <div>
+              <h3>디노이징</h3>
+              <p>이동평균 기반으로 급격한 노이즈를 완화합니다.</p>
+            </div>
+            <button type="button" class="mini-button" data-modal-target="denoisingModal">
+              설정
+            </button>
+          </div>
+
+          <button type="button" class="primary-button full-width" id="runPreprocessingButton">
+            전처리 실행
+          </button>
+        </div>
+      </section>
+
+      <section class="control-group">
+        <button type="button" class="accordion-button" data-accordion="forecastSetting">
+          예측 모델 설정
+        </button>
+
+        <div class="accordion-content" id="forecastSetting">
+          <label class="form-label">
+            예측 모델
+            <select id="modelSelect">
+              <option value="naive">Naive Forecast</option>
+              <option value="movingAverage">Moving Average</option>
+              <option value="exponentialSmoothing">Exponential Smoothing</option>
+              <option value="polynomialTrend">Polynomial Trend</option>
+              <option value="arima">ARIMA 간이 모델</option>
+            </select>
+          </label>
+
+          <label class="form-label">
+            학습 데이터 비율
+            <input type="number" id="trainRatioInput" min="50" max="95" step="5" value="80" />
+          </label>
+
+          <label class="form-label">
+            예측 시평
+            <input type="number" id="horizonInput" min="1" max="120" step="1" value="12" />
+          </label>
+
+          <button type="button" class="secondary-button full-width" data-modal-target="modelParamModal">
+            모델 파라미터 설정
+          </button>
+
+          <button type="button" class="primary-button full-width" id="runForecastButton">
+            예측 실행
+          </button>
+        </div>
+      </section>
+
+      <section class="control-group">
+        <button type="button" class="accordion-button" data-accordion="analysisSetting">
+          분석 및 검정
+        </button>
+
+        <div class="accordion-content" id="analysisSetting">
+          <button type="button" class="secondary-button full-width" id="runMetricsButton">
+            평가지표 계산
+          </button>
+
+          <button type="button" class="secondary-button full-width" id="copyReportButton">
+            결과 복사
+          </button>
+
+          <button type="button" class="secondary-button full-width" id="exportStateButton">
+            분석 상태 저장
+          </button>
+        </div>
+      </section>
+    </aside>
+
+    <section class="workspace-main">
+      <header class="workspace-topbar">
+        <div>
+          <p class="topbar-label">Analysis Workspace</p>
+          <h2>전처리 · 예측 · 성능평가 대시보드</h2>
+        </div>
+
+        <div class="topbar-actions">
+          <button type="button" class="secondary-button" id="addRegionButton">
+            그래프 영역 추가
+          </button>
+
+          <button type="button" class="secondary-button" id="resetChartButton">
+            그래프 초기화
+          </button>
+        </div>
+      </header>
+
+      <section class="dashboard-grid" id="dashboardGrid">
+        <article class="chart-region" data-region-id="region-1">
+          <div class="chart-header">
+            <div>
+              <span>Region 01</span>
+              <h3>원본 · 전처리 · 예측 비교</h3>
+            </div>
+
+            <div class="chart-actions">
+              <label>
+                <input type="checkbox" class="series-toggle" value="original" checked />
+                원본
+              </label>
+
+              <label>
+                <input type="checkbox" class="series-toggle" value="preprocessed" checked />
+                전처리
+              </label>
+
+              <label>
+                <input type="checkbox" class="series-toggle" value="forecast" checked />
+                예측
+              </label>
+            </div>
+          </div>
+
+          <div class="chart-body">
+            <canvas id="mainChart"></canvas>
+          </div>
+        </article>
+
+        <article class="metric-region">
+          <div class="chart-header">
+            <div>
+              <span>Metrics</span>
+              <h3>예측 성능 평가</h3>
+            </div>
+          </div>
+
+          <div class="metric-grid" id="metricGrid">
+            <div class="metric-card">
+              <span>MAE</span>
+              <strong id="maeValue">-</strong>
+            </div>
+
+            <div class="metric-card">
+              <span>MSE</span>
+              <strong id="mseValue">-</strong>
+            </div>
+
+            <div class="metric-card">
+              <span>RMSE</span>
+              <strong id="rmseValue">-</strong>
+            </div>
+
+            <div class="metric-card">
+              <span>MAPE</span>
+              <strong id="mapeValue">-</strong>
+            </div>
+          </div>
+
+          <div class="analysis-note" id="analysisNote">
+            예측을 실행하면 모델 성능 해석이 표시됩니다.
+          </div>
+        </article>
+      </section>
+    </section>
+
+    <button type="button" class="assistant-floating-button" id="assistantButton">
+      AI
+    </button>
+
+    <aside class="assistant-popup hidden" id="assistantPopup">
+      <div class="assistant-header">
+        <div>
+          <h3>AI Assistant</h3>
+          <p>현재 분석 결과를 기준으로 가이드를 제공합니다.</p>
+        </div>
+
+        <button type="button" id="closeAssistantButton">×</button>
+      </div>
+
+      <div class="assistant-body" id="assistantBody">
+        <p>
+          업로드된 데이터의 형태, 결측값, 이상치, 추세, 계절성,
+          예측 성능을 기준으로 전처리 및 모델 선택을 도와줍니다.
+        </p>
+      </div>
+
+      <textarea
+        id="assistantInput"
+        placeholder="분석 결과를 붙여넣거나 질문을 입력하세요."
+      ></textarea>
+
+      <button type="button" class="primary-button full-width" id="assistantAskButton">
+        질문하기
+      </button>
+    </aside>
+  </main>
+
+  <div class="modal hidden" id="missingModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>결측값 처리 설정</h3>
+        <button type="button" data-modal-close>×</button>
+      </div>
+
+      <label class="form-label">
+        사용 여부
+        <select id="missingEnabledSelect">
+          <option value="true">사용</option>
+          <option value="false">사용 안 함</option>
+        </select>
+      </label>
+
+      <label class="form-label">
+        처리 방법
+        <select id="missingMethodSelect">
+          <option value="linear">선형 보간</option>
+          <option value="ffill">이전값 대체</option>
+          <option value="bfill">다음값 대체</option>
+          <option value="mean">평균값 대체</option>
+          <option value="zero">0으로 대체</option>
+        </select>
+      </label>
+
+      <button type="button" class="primary-button full-width" id="saveMissingConfigButton">
+        저장
+      </button>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="outlierModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>이상치 처리 설정</h3>
+        <button type="button" data-modal-close>×</button>
+      </div>
+
+      <label class="form-label">
+        사용 여부
+        <select id="outlierEnabledSelect">
+          <option value="true">사용</option>
+          <option value="false">사용 안 함</option>
+        </select>
+      </label>
+
+      <label class="form-label">
+        탐지 방법
+        <select id="outlierMethodSelect">
+          <option value="iqr">IQR</option>
+          <option value="zscore">Z-score</option>
+        </select>
+      </label>
+
+      <label class="form-label">
+        대체 방법
+        <select id="outlierReplaceSelect">
+          <option value="linear">선형 보간</option>
+          <option value="median">중앙값 대체</option>
+          <option value="mean">평균값 대체</option>
+        </select>
+      </label>
+
+      <button type="button" class="primary-button full-width" id="saveOutlierConfigButton">
+        저장
+      </button>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="resamplingModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>리샘플링 설정</h3>
+        <button type="button" data-modal-close>×</button>
+      </div>
+
+      <label class="form-label">
+        사용 여부
+        <select id="resamplingEnabledSelect">
+          <option value="false">사용 안 함</option>
+          <option value="true">사용</option>
+        </select>
+      </label>
+
+      <label class="form-label">
+        주기
+        <select id="resamplingFrequencySelect">
+          <option value="D">일 단위</option>
+          <option value="W">주 단위</option>
+          <option value="M">월 단위</option>
+        </select>
+      </label>
+
+      <label class="form-label">
+        집계 방법
+        <select id="resamplingMethodSelect">
+          <option value="mean">평균</option>
+          <option value="sum">합계</option>
+          <option value="median">중앙값</option>
+        </select>
+      </label>
+
+      <button type="button" class="primary-button full-width" id="saveResamplingConfigButton">
+        저장
+      </button>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="denoisingModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>디노이징 설정</h3>
+        <button type="button" data-modal-close>×</button>
+      </div>
+
+      <label class="form-label">
+        사용 여부
+        <select id="denoisingEnabledSelect">
+          <option value="false">사용 안 함</option>
+          <option value="true">사용</option>
+        </select>
+      </label>
+
+      <label class="form-label">
+        방법
+        <select id="denoisingMethodSelect">
+          <option value="movingAverage">이동평균</option>
+        </select>
+      </label>
+
+      <label class="form-label">
+        이동평균 Window
+        <input type="number" id="denoisingWindowInput" min="2" max="30" step="1" value="3" />
+      </label>
+
+      <button type="button" class="primary-button full-width" id="saveDenoisingConfigButton">
+        저장
+      </button>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="modelParamModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>모델 파라미터 설정</h3>
+        <button type="button" data-modal-close>×</button>
+      </div>
+
+      <div class="model-param-section" data-model-param="naive">
+        <label class="form-label">
+          Naive 전략
+          <select id="naiveStrategySelect">
+            <option value="last">마지막 값 기준</option>
+            <option value="mean">평균값 기준</option>
+            <option value="seasonal">계절 naive</option>
+          </select>
+        </label>
+
+        <label class="form-label">
+          Window Length
+          <input type="number" id="naiveWindowInput" min="1" max="120" value="12" />
+        </label>
+      </div>
+
+      <div class="model-param-section" data-model-param="movingAverage">
+        <label class="form-label">
+          Moving Average Window
+          <input type="number" id="movingAverageWindowInput" min="2" max="60" value="5" />
+        </label>
+      </div>
+
+      <div class="model-param-section" data-model-param="exponentialSmoothing">
+        <label class="form-label">
+          Alpha
+          <input type="number" id="alphaInput" min="0.01" max="1" step="0.01" value="0.3" />
+        </label>
+
+        <label class="form-label">
+          Beta
+          <input type="number" id="betaInput" min="0" max="1" step="0.01" value="0.05" />
+        </label>
+
+        <label class="form-label">
+          Gamma
+          <input type="number" id="gammaInput" min="0" max="1" step="0.01" value="0.05" />
+        </label>
+
+        <label class="form-label">
+          Seasonal Period
+          <input type="number" id="seasonalPeriodInput" min="2" max="120" value="12" />
+        </label>
+      </div>
+
+      <div class="model-param-section" data-model-param="polynomialTrend">
+        <label class="form-label">
+          다항 차수
+          <input type="number" id="polynomialDegreeInput" min="1" max="5" value="1" />
+        </label>
+      </div>
+
+      <div class="model-param-section" data-model-param="arima">
+        <label class="form-label">
+          p
+          <input type="number" id="arimaPInput" min="0" max="5" value="1" />
+        </label>
+
+        <label class="form-label">
+          d
+          <input type="number" id="arimaDInput" min="0" max="2" value="1" />
+        </label>
+
+        <label class="form-label">
+          q
+          <input type="number" id="arimaQInput" min="0" max="5" value="1" />
+        </label>
+      </div>
+
+      <button type="button" class="primary-button full-width" id="saveModelParamButton">
+        저장
+      </button>
+    </div>
+  </div>
+
+  <script src="./js/app.js"></script>
+  <script src="./js/preprocessing.js"></script>
+  <script src="./js/forecasting.js"></script>
+  <script src="./js/metrics.js"></script>
+  <script src="./js/charts.js"></script>
+  <script src="./js/assistant.js"></script>
+</body>
+</html>
