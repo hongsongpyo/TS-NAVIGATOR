@@ -1,112 +1,93 @@
 <!DOCTYPE html>
 <html lang="ko">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <title>TS Navigator</title>
+  <title>TS Navigator</title>
 
-    <link rel="stylesheet" href="./css/base.css" />
-    <link rel="stylesheet" href="./css/home.css" />
-  </head>
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/home.css" />
+</head>
 
-  <body>
-    <main class="home-page">
-      <div class="home-blur left"></div>
-      <div class="home-blur right"></div>
+<body>
+  <main class="home-shell">
+    <header class="home-header">
+      <div class="brand">
+        TS Navigator
+      </div>
 
-      <header class="home-header">
-        <div class="home-logo">
-          <div class="home-logo-mark">TS</div>
+      <div class="maker">
+        Made by Songpyo Hong
+      </div>
+    </header>
 
-          <div class="home-logo-text">
-            <h1>TS Navigator</h1>
-            <span>Time Series Analysis Workspace</span>
-          </div>
+    <section class="home-content">
+      <label class="upload-card" for="csvInput">
+        <input
+          id="csvInput"
+          type="file"
+          accept=".csv,text/csv"
+          hidden
+        />
+
+        <span id="uploadText" class="upload-title">
+          분석할 CSV 파일을 업로드하기
+        </span>
+      </label>
+
+      <div class="uploaded-file-panel">
+        <button
+          id="fileListToggle"
+          class="file-list-toggle"
+          type="button"
+        >
+          업로드된 파일
+        </button>
+
+        <div id="fileName" class="file-name">
+          아직 업로드된 파일이 없습니다.
         </div>
 
-        <div class="home-header-right">
-          <p class="home-made-by">Made by Songpyo Hong</p>
-        </div>
-      </header>
-
-      <section class="home-main">
-        <div class="upload-section">
-          <div class="upload-hero">
-            <span class="upload-hero-badge">CSV 기반 시계열 자동 분석</span>
-            <h2>시계열 데이터 분석을 시작하세요</h2>
-            <p>
-              단변량 CSV 파일을 업로드하면 데이터 구조 확인, 전처리,
-              예측 모델 적용, 평가지표 확인까지 하나의 Workspace에서 진행할 수 있습니다.
-            </p>
+        <div id="filePreview" class="file-preview hidden">
+          <div class="file-preview-title">
+            File Preview
           </div>
 
-          <div class="upload-card" id="uploadCard">
-            <div class="upload-icon">＋</div>
-
-            <div class="upload-text">
-              <h3>분석할 CSV 파일을 업로드하기</h3>
-              <p>
-                datetime column과 target column을 자동으로 탐지하고,
-                Original Data Track을 생성합니다.
-              </p>
-            </div>
-
-            <div class="upload-actions">
-              <label class="upload-primary-button">
-                CSV 파일 선택
-                <input
-                  type="file"
-                  id="csvFileInput"
-                  accept=".csv,text/csv"
-                />
-              </label>
-
-              <button
-                type="button"
-                class="upload-secondary-button"
-                id="sampleDataButton"
-              >
-                샘플 데이터로 시작
-              </button>
-            </div>
-
-            <div class="upload-file-info">
-              <p class="selected-file-name" id="selectedFileName">파일</p>
-              <div class="upload-status" id="uploadStatus"></div>
-            </div>
-          </div>
-
-          <div class="upload-footer">
-            <div class="upload-footer-item">
-              <span class="upload-footer-dot"></span>
-              단변량 CSV 지원
-            </div>
-
-            <div class="upload-footer-item">
-              <span class="upload-footer-dot"></span>
-              자동 전처리 Track 생성
-            </div>
-
-            <div class="upload-footer-item">
-              <span class="upload-footer-dot"></span>
-              예측 및 평가지표 대시보드
-            </div>
+          <div class="file-preview-body">
+            CSV 파일을 업로드하면 파일명, 행 수, 날짜 컬럼, target 컬럼, 추정 주기가 표시됩니다.
           </div>
         </div>
-      </section>
-    </main>
+      </div>
 
-    <script src="./js/state.js"></script>
+      <div class="home-actions">
+        <button
+          id="startBtn"
+          class="start-btn disabled"
+          type="button"
+          disabled
+        >
+          Workspace 열기
+        </button>
 
-    <script src="./js/utils/mathUtils.js"></script>
-    <script src="./js/utils/dateUtils.js"></script>
-    <script src="./js/utils/csvUtils.js"></script>
-    <script src="./js/utils/sampleData.js"></script>
+        <button
+          class="sample-btn"
+          type="button"
+          onclick="window.TSUpload?.loadSampleCSV()"
+        >
+          샘플 데이터 불러오기
+        </button>
+      </div>
+    </section>
+  </main>
 
-    <script src="./js/analysis/dataStructure.js"></script>
+  <script src="js/state.js"></script>
 
-    <script src="./js/upload.js"></script>
-    <script src="./js/app.js"></script>
-  </body>
+  <script src="js/utils/dateUtils.js"></script>
+  <script src="js/utils/mathUtils.js"></script>
+  <script src="js/utils/csvUtils.js"></script>
+  <script src="js/utils/sampleData.js"></script>
+
+  <script src="js/upload.js"></script>
+</body>
 </html>

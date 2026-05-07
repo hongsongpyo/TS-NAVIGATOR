@@ -1,360 +1,1168 @@
 /* =========================================================
    TS Navigator - workspace.css
-   Workspace 전체 3분할 레이아웃
-   Inspector 18% / Timeline 10% / Region 72%
-   Inspector 닫힘 3% / Timeline 10% / Region 87%
-   ========================================================= */
+========================================================= */
 
 /* =========================================================
-   Workspace Page
-   ========================================================= */
+   WORKSPACE SHELL
+========================================================= */
 
-.workspace-page {
+.workspace-shell {
   width: 100%;
   height: 100vh;
 
-  display: flex;
-  flex-direction: column;
-
-  background: var(--color-background);
-
-  overflow: hidden;
-}
-
-/* =========================================================
-   Header
-   ========================================================= */
-
-.workspace-header {
-  flex-shrink: 0;
-}
-
-#homeButton,
-#saveProjectButton,
-#resetProjectButton {
-  min-height: 36px;
-
-  padding: 0 14px;
-
-  border-radius: var(--radius-round);
-
-  background: var(--color-surface-2);
-  color: var(--color-text);
-
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-}
-
-#homeButton:hover,
-#saveProjectButton:hover,
-#resetProjectButton:hover {
-  background: var(--color-surface-3);
-}
-
-#resetProjectButton {
-  color: #ff9d9d;
-}
-
-/* =========================================================
-   Workspace Layout
-   ========================================================= */
-
-.workspace-layout {
-  flex: 1;
-
-  width: 100%;
-  min-height: 0;
-
   display: grid;
-  grid-template-columns: 18% 10% 72%;
-
-  background: var(--color-background);
-
-  transition: grid-template-columns var(--transition-normal);
-}
-
-.workspace-layout[data-inspector="closed"] {
-  grid-template-columns: 3% 10% 87%;
-}
-
-/* =========================================================
-   Workspace Column Common
-   ========================================================= */
-
-.workspace-column {
-  min-width: 0;
-  min-height: 0;
-
-  height: 100%;
-
-  border-right: 1px solid var(--color-border);
-
-  background: var(--color-surface);
+  grid-template-rows: 56px 1fr;
 
   overflow: hidden;
-}
-
-.workspace-column:last-child {
-  border-right: none;
-}
-
-.workspace-column-inner {
-  width: 100%;
-  height: 100%;
-
-  overflow: auto;
-}
-
-/* =========================================================
-   Track Inspector Column
-   ========================================================= */
-
-.track-inspector-column {
-  position: relative;
 
   background:
     linear-gradient(
       180deg,
-      rgba(23, 26, 34, 0.98),
-      rgba(15, 17, 23, 0.98)
+      #232323 0%,
+      #1d1d1d 100%
     );
 }
 
-.track-inspector-column.closed {
+/* =========================================================
+   TOPBAR
+========================================================= */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 0 16px;
+
+  border-bottom:
+    1px solid rgba(255,255,255,0.06);
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,0.03),
+      rgba(255,255,255,0.015)
+    );
+
+  backdrop-filter: blur(12px);
+
+  z-index: 20;
+}
+
+.topbar-left,
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.topbar-brand {
+  color: #f1f1f1;
+
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.topbar-btn {
+  min-width: 70px;
+  height: 32px;
+
+  padding: 0 12px;
+
+  border:
+    1px solid rgba(255,255,255,0.08);
+
+  border-radius: 10px;
+
+  background:
+    rgba(255,255,255,0.03);
+
+  color: #dddddd;
+
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.topbar-btn:hover {
+  background:
+    rgba(255,255,255,0.06);
+}
+
+/* =========================================================
+   BODY
+========================================================= */
+
+.workspace-body {
+  width: 100%;
+  height: 100%;
+
+  display: grid;
+  grid-template-columns:
+    minmax(48px, 18%)
+    minmax(260px, 10%)
+    minmax(0, 1fr);
+
   overflow: hidden;
 }
 
-.track-inspector-column.closed .selected-track-panel,
-.track-inspector-column.closed .inspector-empty,
-.track-inspector-column.closed .section-title,
-.track-inspector-column.closed .section-kicker {
+/* =========================================================
+   TRACK INSPECTOR
+========================================================= */
+
+.track-inspector {
+  position: relative;
+
+  display: flex;
+  flex-direction: column;
+
+  min-width: 0;
+
+  border-right:
+    1px solid rgba(255,255,255,0.06);
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,0.02),
+      rgba(255,255,255,0.01)
+    );
+
+  overflow: hidden;
+
+  transition:
+    width 0.18s ease,
+    min-width 0.18s ease;
+}
+
+.track-inspector.inspector-closed {
+  width: 48px;
+  min-width: 48px;
+}
+
+.track-inspector.inspector-closed
+.inspector-section,
+.track-inspector.inspector-closed
+.selected-track-panel,
+.track-inspector.inspector-closed
+.analysis-result-panel {
   display: none;
 }
 
-.track-inspector-column.closed::after {
-  content: attr(data-collapsed-label);
+.track-inspector.inspector-closed
+.section-title {
+  display: none;
+}
 
-  position: absolute;
-  top: 50%;
-  left: 50%;
+/* =========================================================
+   INSPECTOR HEADER
+========================================================= */
 
-  transform: translate(-50%, -50%) rotate(-90deg);
+.inspector-header {
+  height: 48px;
 
-  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 
-  color: var(--color-text-soft);
+  padding: 0 12px;
+
+  border-bottom:
+    1px solid rgba(255,255,255,0.06);
+}
+
+.inspector-title {
+  color: #f1f1f1;
 
   font-size: 10px;
   font-weight: 800;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.08em;
 }
 
-/* =========================================================
-   Track Timeline Column
-   ========================================================= */
+.collapse-btn {
+  width: 28px;
+  height: 28px;
 
-.track-timeline-column {
+  border-radius: 8px;
+
   background:
-    linear-gradient(
-      180deg,
-      rgba(20, 23, 31, 0.98),
-      rgba(15, 17, 23, 0.98)
-    );
+    rgba(255,255,255,0.04);
+
+  color: #d4d4d4;
+
+  font-size: 11px;
 }
 
-.track-timeline-column.inspector-closed {
-  border-left: 1px solid var(--color-border);
+.collapse-btn:hover {
+  background:
+    rgba(255,255,255,0.08);
 }
 
 /* =========================================================
-   Visualization Region Column
-   ========================================================= */
+   INSPECTOR SECTION
+========================================================= */
 
-.visualization-region-column {
-  background: #10131b;
+.inspector-section {
+  padding: 12px;
+
+  border-bottom:
+    1px solid rgba(255,255,255,0.05);
 
   overflow: hidden;
 }
 
-.visualization-region-column.inspector-closed {
-  background: #10131b;
+.inspector-section.grow {
+  flex: 1;
+
+  display: flex;
+  flex-direction: column;
+}
+
+.section-title {
+  margin-bottom: 10px;
+
+  color: #9f9f9f;
+
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 /* =========================================================
-   Compact Layout
-   ========================================================= */
+   PROJECT STATUS
+========================================================= */
 
-.workspace-layout.compact-layout {
+.project-status-list {
+  display: grid;
+  gap: 8px;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.status-label {
+  color: #a0a0a0;
+
+  font-size: 10px;
+}
+
+.status-value {
+  color: #f1f1f1;
+
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* =========================================================
+   SELECTED TRACK
+========================================================= */
+
+.selected-track-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.field-block {
+  display: flex;
+  flex-direction: column;
+}
+
+.track-action-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.mini-btn.danger {
+  background:
+    rgba(184,106,106,0.14);
+
+  color: #f2b8b8;
+}
+
+/* =========================================================
+   ANALYSIS STACK
+========================================================= */
+
+.analysis-stack-list {
+  display: grid;
+  gap: 8px;
+
+  max-height: 220px;
+
+  overflow-y: auto;
+}
+
+.analysis-stack-item {
+  padding: 10px;
+
+  border:
+    1px solid rgba(255,255,255,0.06);
+
+  border-radius: 10px;
+
+  background:
+    rgba(255,255,255,0.02);
+
+  transition:
+    border-color 0.14s ease,
+    background 0.14s ease;
+}
+
+.analysis-stack-item:hover {
+  border-color:
+    rgba(255,255,255,0.12);
+
+  background:
+    rgba(255,255,255,0.04);
+}
+
+.analysis-stack-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  margin-bottom: 8px;
+}
+
+.analysis-stack-name {
+  color: #f1f1f1;
+
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.analysis-stack-summary {
+  color: #ababab;
+
+  font-size: 9px;
+  line-height: 1.55;
+}
+
+/* =========================================================
+   ANALYSIS RESULT PANEL
+========================================================= */
+
+.analysis-result-panel {
+  flex: 1;
+
+  overflow-y: auto;
+
+  padding-right: 2px;
+
+  color: #c9c9c9;
+
+  font-size: 10px;
+  line-height: 1.7;
+}
+
+/* =========================================================
+   TIMELINE PANEL
+========================================================= */
+
+.timeline-panel {
   display: flex;
   flex-direction: column;
 
-  height: auto;
-  min-height: calc(100vh - var(--header-height));
+  border-right:
+    1px solid rgba(255,255,255,0.06);
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,0.015),
+      rgba(255,255,255,0.008)
+    );
+
+  overflow: hidden;
+}
+
+/* =========================================================
+   TIMELINE HEADER
+========================================================= */
+
+.timeline-header {
+  height: 48px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 0 10px;
+
+  border-bottom:
+    1px solid rgba(255,255,255,0.05);
+}
+
+.timeline-title {
+  color: #f1f1f1;
+
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.add-track-btn {
+  min-width: 70px;
+  height: 28px;
+
+  padding: 0 10px;
+
+  border-radius: 8px;
+
+  background:
+    rgba(255,255,255,0.05);
+
+  color: #d8d8d8;
+
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.add-track-btn:hover {
+  background:
+    rgba(255,255,255,0.09);
+}
+
+/* =========================================================
+   TRACK LIST
+========================================================= */
+
+.timeline-track-list {
+  flex: 1;
+
+  overflow-y: auto;
+
+  padding: 10px;
+
+  display: grid;
+  gap: 10px;
+}
+
+.timeline-track-card {
+  position: relative;
+
+  padding: 12px;
+
+  border:
+    1px solid rgba(255,255,255,0.06);
+
+  border-radius: 12px;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,0.025),
+      rgba(255,255,255,0.01)
+    );
+
+  cursor: pointer;
+
+  transition:
+    border-color 0.16s ease,
+    transform 0.16s ease,
+    background 0.16s ease;
+}
+
+.timeline-track-card:hover {
+  transform: translateY(-1px);
+
+  border-color:
+    rgba(255,255,255,0.12);
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,0.04),
+      rgba(255,255,255,0.015)
+    );
+}
+
+.timeline-track-card.selected {
+  border-color:
+    rgba(118,168,120,0.42);
+
+  box-shadow:
+    0 0 0 1px rgba(118,168,120,0.15);
+}
+
+.timeline-track-name {
+  color: #f1f1f1;
+
+  font-size: 10px;
+  font-weight: 700;
+
+  margin-bottom: 7px;
+}
+
+.timeline-track-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.timeline-track-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 20px;
+
+  padding: 0 7px;
+
+  border-radius: 999px;
+
+  background:
+    rgba(255,255,255,0.05);
+
+  color: #cfcfcf;
+
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.timeline-track-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  margin-top: 10px;
+}
+
+.track-visibility-btn,
+.track-close-btn {
+  width: 24px;
+  height: 24px;
+
+  border-radius: 7px;
+
+  background:
+    rgba(255,255,255,0.04);
+
+  color: #d3d3d3;
+
+  font-size: 10px;
+}
+
+.track-close-btn:hover {
+  background:
+    rgba(184,106,106,0.16);
+
+  color: #f1b5b5;
+}
+
+/* =========================================================
+   VISUALIZATION PANEL
+========================================================= */
+
+.visualization-panel {
+  display: flex;
+  flex-direction: column;
+
+  min-width: 0;
+
+  overflow: hidden;
+}
+
+/* =========================================================
+   VISUALIZATION HEADER
+========================================================= */
+
+.visualization-header {
+  height: 48px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 0 12px;
+
+  border-bottom:
+    1px solid rgba(255,255,255,0.05);
+}
+
+.visualization-title {
+  color: #f1f1f1;
+
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.visualization-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.region-btn {
+  min-width: 86px;
+  height: 30px;
+
+  padding: 0 12px;
+
+  border-radius: 9px;
+
+  background:
+    rgba(255,255,255,0.05);
+
+  color: #dddddd;
+
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.region-btn:hover {
+  background:
+    rgba(255,255,255,0.09);
+}
+
+/* =========================================================
+   REGION GRID
+========================================================= */
+
+.visualization-region-grid {
+  flex: 1;
+
+  min-width: 0;
+
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-auto-rows: minmax(240px, 1fr);
+
+  gap: 12px;
+
+  padding: 12px;
 
   overflow: auto;
 }
 
-.workspace-layout.compact-layout .workspace-column {
-  width: 100%;
-  height: auto;
-
-  min-height: 240px;
-
-  border-right: none;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.workspace-layout.compact-layout .track-inspector-column.closed {
-  min-height: 56px;
-}
-
-.workspace-layout.compact-layout .track-inspector-column.closed::after {
-  transform: translate(-50%, -50%);
-}
-
 /* =========================================================
-   Workspace Empty / Chart Common
-   ========================================================= */
+   VISUAL REGION
+========================================================= */
 
-.chart-empty,
-.chart-loading {
-  width: 100%;
-  height: 100%;
-
-  min-height: 260px;
+.visual-region {
+  position: relative;
 
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
 
-  gap: 12px;
+  min-height: 0;
 
-  color: var(--color-text-soft);
+  border:
+    1px solid rgba(255,255,255,0.07);
 
-  text-align: center;
+  border-radius: 16px;
 
-  font-size: var(--font-size-sm);
-}
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,0.025),
+      rgba(255,255,255,0.012)
+    );
 
-.chart-loading-dot {
-  width: 18px;
-  height: 18px;
+  overflow: hidden;
 
-  border-radius: 50%;
-
-  border: 2px solid rgba(255, 255, 255, 0.12);
-  border-top-color: var(--color-primary);
-
-  animation: ts-spin 0.7s linear infinite;
+  box-shadow:
+    0 14px 34px rgba(0,0,0,0.22);
 }
 
 /* =========================================================
-   Point Context Menu
-   ========================================================= */
+   REGION HEAD
+========================================================= */
 
-.point-context-menu {
-  position: fixed;
-
-  min-width: 148px;
-
-  padding: 6px;
-
-  border-radius: 12px;
-
-  background: var(--color-surface-2);
-
-  border: 1px solid var(--color-border-light);
-
-  box-shadow: var(--shadow-lg);
-
-  z-index: 2200;
-}
-
-.point-context-menu button {
-  width: 100%;
+.region-head {
+  height: 42px;
 
   display: flex;
   align-items: center;
+  justify-content: space-between;
 
-  padding: 9px 10px;
+  padding: 0 12px;
 
-  border-radius: 8px;
-
-  background: transparent;
-  color: var(--color-text);
-
-  font-size: var(--font-size-sm);
-  text-align: left;
+  border-bottom:
+    1px solid rgba(255,255,255,0.05);
 }
 
-.point-context-menu button:hover {
-  background: var(--color-surface-3);
+.region-title {
+  color: #f1f1f1;
+
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.region-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.region-mini-btn {
+  width: 24px;
+  height: 24px;
+
+  border-radius: 7px;
+
+  background:
+    rgba(255,255,255,0.04);
+
+  color: #d2d2d2;
+
+  font-size: 10px;
+}
+
+.region-mini-btn:hover {
+  background:
+    rgba(255,255,255,0.08);
 }
 
 /* =========================================================
-   Global Workspace Text Selection
-   ========================================================= */
+   REGION CHART AREA
+========================================================= */
 
-.workspace-page pre,
-.workspace-page code,
-.workspace-page table,
-.workspace-page textarea,
-.workspace-page input {
-  user-select: text;
+.region-chart-area {
+  position: relative;
+
+  flex: 1;
+
+  min-height: 0;
+
+  overflow: hidden;
 }
 
-.workspace-page button,
-.workspace-page .track-card,
-.workspace-page .region-panel {
-  user-select: none;
+.region-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.region-empty-overlay {
+  position: absolute;
+  inset: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: #8d8d8d;
+
+  font-size: 11px;
+  line-height: 1.7;
+  text-align: center;
+
+  pointer-events: none;
 }
 
 /* =========================================================
-   Responsive
-   ========================================================= */
+   ANALYSIS POPUP LAYER
+========================================================= */
+
+.analysis-popup-layer {
+  position: fixed;
+  inset: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background:
+    rgba(10,10,10,0.54);
+
+  backdrop-filter: blur(10px);
+
+  z-index: 90;
+}
+
+/* =========================================================
+   ANALYSIS POPUP
+========================================================= */
+
+.analysis-popup {
+  width: min(860px, 92vw);
+  height: min(700px, 88vh);
+
+  display: grid;
+  grid-template-rows:
+    54px
+    44px
+    auto
+    1fr
+    62px;
+
+  border:
+    1px solid rgba(255,255,255,0.08);
+
+  border-radius: 20px;
+
+  background:
+    linear-gradient(
+      180deg,
+      #2b2b2b,
+      #232323
+    );
+
+  overflow: hidden;
+
+  box-shadow:
+    0 26px 80px rgba(0,0,0,0.52);
+
+  animation:
+    popup-fade-in 0.16s ease;
+}
+
+/* =========================================================
+   POPUP HEADER
+========================================================= */
+
+.popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 0 18px;
+
+  border-bottom:
+    1px solid rgba(255,255,255,0.06);
+}
+
+.popup-title {
+  color: #f1f1f1;
+
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.popup-close-btn {
+  width: 32px;
+  height: 32px;
+
+  border-radius: 9px;
+
+  background:
+    rgba(255,255,255,0.04);
+
+  color: #d5d5d5;
+
+  font-size: 14px;
+}
+
+.popup-close-btn:hover {
+  background:
+    rgba(184,106,106,0.16);
+}
+
+/* =========================================================
+   POPUP CATEGORY
+========================================================= */
+
+.popup-category-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  padding: 0 14px;
+
+  border-bottom:
+    1px solid rgba(255,255,255,0.05);
+}
+
+.popup-category-btn {
+  min-width: 84px;
+  height: 30px;
+
+  padding: 0 10px;
+
+  border-radius: 999px;
+
+  background:
+    rgba(255,255,255,0.04);
+
+  color: #cfcfcf;
+
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.popup-category-btn.active {
+  background:
+    rgba(118,168,120,0.22);
+
+  color: #e9f8ea;
+}
+
+/* =========================================================
+   POPUP MENU
+========================================================= */
+
+.popup-menu-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(auto-fill, minmax(130px, 1fr));
+
+  gap: 10px;
+
+  padding: 16px;
+
+  border-bottom:
+    1px solid rgba(255,255,255,0.05);
+}
+
+.popup-analysis-btn {
+  min-height: 46px;
+
+  padding: 10px;
+
+  border:
+    1px solid rgba(255,255,255,0.07);
+
+  border-radius: 14px;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,0.03),
+      rgba(255,255,255,0.015)
+    );
+
+  color: #ececec;
+
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+
+  transition:
+    border-color 0.16s ease,
+    transform 0.16s ease,
+    background 0.16s ease;
+}
+
+.popup-analysis-btn:hover {
+  transform: translateY(-1px);
+
+  border-color:
+    rgba(255,255,255,0.14);
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,0.05),
+      rgba(255,255,255,0.02)
+    );
+}
+
+.popup-analysis-btn.active {
+  border-color:
+    rgba(118,168,120,0.45);
+
+  background:
+    rgba(118,168,120,0.14);
+}
+
+.auto-analysis-btn {
+  background:
+    linear-gradient(
+      145deg,
+      rgba(118,168,120,0.18),
+      rgba(118,168,120,0.08)
+    );
+}
+
+/* =========================================================
+   PARAMETER PANEL
+========================================================= */
+
+.popup-parameter-panel {
+  overflow-y: auto;
+
+  padding: 16px;
+}
+
+.parameter-placeholder {
+  display: grid;
+  place-items: center;
+
+  min-height: 100%;
+
+  color: #8f8f8f;
+
+  font-size: 11px;
+  line-height: 1.7;
+  text-align: center;
+}
+
+/* =========================================================
+   POPUP ACTIONS
+========================================================= */
+
+.popup-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+
+  padding: 0 18px;
+
+  border-top:
+    1px solid rgba(255,255,255,0.05);
+}
+
+.popup-action-btn {
+  min-width: 110px;
+  height: 38px;
+
+  padding: 0 14px;
+
+  border-radius: 12px;
+
+  background:
+    rgba(255,255,255,0.05);
+
+  color: #d8d8d8;
+
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.popup-action-btn.primary {
+  background:
+    linear-gradient(
+      145deg,
+      #6f9f72,
+      #5d855f
+    );
+
+  color: #ffffff;
+}
+
+.popup-action-btn:hover {
+  transform: translateY(-1px);
+}
+
+/* =========================================================
+   PARAMETER FORM
+========================================================= */
+
+.parameter-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+.parameter-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.parameter-help {
+  margin-top: 6px;
+
+  color: #8f8f8f;
+
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+/* =========================================================
+   METRIC CARD GRID
+========================================================= */
+
+.metric-card-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(auto-fill, minmax(160px, 1fr));
+
+  gap: 12px;
+}
+
+.metric-card {
+  padding: 14px;
+
+  border:
+    1px solid rgba(255,255,255,0.06);
+
+  border-radius: 14px;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,0.025),
+      rgba(255,255,255,0.012)
+    );
+}
+
+.metric-card-label {
+  margin-bottom: 8px;
+
+  color: #9d9d9d;
+
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.metric-card-value {
+  color: #f1f1f1;
+
+  font-size: 18px;
+  font-weight: 800;
+}
+
+/* =========================================================
+   ANIMATION
+========================================================= */
+
+@keyframes popup-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
 
 @media (max-width: 1200px) {
-  .workspace-layout {
-    grid-template-columns: 22% 13% 65%;
-  }
-
-  .workspace-layout[data-inspector="closed"] {
-    grid-template-columns: 4% 13% 83%;
+  .workspace-body {
+    grid-template-columns:
+      minmax(48px, 24%)
+      minmax(220px, 14%)
+      minmax(0, 1fr);
   }
 }
 
-@media (max-width: 900px) {
-  .workspace-page {
-    height: auto;
-    min-height: 100vh;
-
-    overflow: auto;
+@media (max-width: 920px) {
+  .workspace-body {
+    grid-template-columns: 1fr;
   }
 
-  .workspace-layout {
-    display: flex;
-    flex-direction: column;
-
-    height: auto !important;
+  .track-inspector,
+  .timeline-panel {
+    display: none;
   }
 
-  .workspace-column {
+  .visualization-panel {
     width: 100%;
-
-    border-right: none;
-    border-bottom: 1px solid var(--color-border);
   }
 
-  .track-inspector-column {
-    min-height: 360px;
+  .analysis-popup {
+    width: 96vw;
+    height: 92vh;
   }
 
-  .track-timeline-column {
-    min-height: 300px;
-  }
-
-  .visualization-region-column {
-    min-height: 680px;
+  .parameter-grid {
+    grid-template-columns: 1fr;
   }
 }

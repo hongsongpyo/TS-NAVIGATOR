@@ -1,104 +1,60 @@
 /* =========================================================
    TS Navigator - base.css
-   공통 색상 / 폰트 / 버튼 / 변수 / 전역 스타일
-   ========================================================= */
+========================================================= */
 
 /* =========================================================
-   Root Variables
-   ========================================================= */
+   ROOT
+========================================================= */
 
 :root {
-  /* ---------- Color ---------- */
+  --bg-primary: #1f1f1f;
+  --bg-secondary: #262626;
+  --bg-tertiary: #2d2d2d;
+  --bg-elevated: #323232;
 
-  --color-background: #0f1117;
-  --color-surface: #171a22;
-  --color-surface-2: #1d212c;
-  --color-surface-3: #242938;
+  --border-primary: rgba(255, 255, 255, 0.08);
+  --border-secondary: rgba(255, 255, 255, 0.12);
 
-  --color-border: #2e3445;
-  --color-border-light: #3b4358;
+  --text-primary: #f1f1f1;
+  --text-secondary: #cfcfcf;
+  --text-muted: #9a9a9a;
 
-  --color-text: #f1f3f5;
-  --color-text-muted: #9aa4b2;
-  --color-text-soft: #6f7a8a;
+  --accent-primary: #76a878;
+  --accent-secondary: #8d9cb7;
+  --danger-primary: #b86a6a;
 
-  --color-primary: #5b8cff;
-  --color-primary-hover: #4a7bf0;
+  --shadow-soft:
+    0 10px 30px rgba(0, 0, 0, 0.24);
 
-  --color-success: #22c55e;
-  --color-warning: #f59f00;
-  --color-danger: #ef4444;
+  --shadow-strong:
+    0 18px 44px rgba(0, 0, 0, 0.42);
 
-  --color-region: #00bcd4;
-  --color-forecast: #ff922b;
-  --color-metric: #845ef7;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
 
-  --color-overlay: rgba(0, 0, 0, 0.45);
-
-  /* ---------- Typography ---------- */
+  --transition-fast: 0.14s ease;
+  --transition-normal: 0.2s ease;
 
   --font-family:
-    "Pretendard",
-    "Apple SD Gothic Neo",
-    "Noto Sans KR",
+    Inter,
+    Pretendard,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
     sans-serif;
-
-  --font-size-xs: 11px;
-  --font-size-sm: 12px;
-  --font-size-md: 14px;
-  --font-size-lg: 16px;
-  --font-size-xl: 20px;
-
-  --font-weight-regular: 400;
-  --font-weight-medium: 500;
-  --font-weight-bold: 700;
-
-  --line-height: 1.5;
-
-  /* ---------- Radius ---------- */
-
-  --radius-xs: 6px;
-  --radius-sm: 10px;
-  --radius-md: 14px;
-  --radius-lg: 18px;
-  --radius-xl: 24px;
-  --radius-round: 999px;
-
-  /* ---------- Spacing ---------- */
-
-  --space-2xs: 4px;
-  --space-xs: 8px;
-  --space-sm: 12px;
-  --space-md: 16px;
-  --space-lg: 20px;
-  --space-xl: 28px;
-  --space-2xl: 36px;
-
-  /* ---------- Shadow ---------- */
-
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.15);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.2);
-  --shadow-lg: 0 18px 42px rgba(0, 0, 0, 0.28);
-
-  /* ---------- Transition ---------- */
-
-  --transition-fast: 0.15s ease;
-  --transition-normal: 0.25s ease;
-
-  /* ---------- Layout ---------- */
-
-  --header-height: 64px;
-
-  --z-popup: 2000;
-  --z-assistant: 1800;
-  --z-floating: 1500;
 }
 
 /* =========================================================
-   Reset
-   ========================================================= */
+   RESET
+========================================================= */
 
-*,
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
 *::before,
 *::after {
   box-sizing: border-box;
@@ -106,78 +62,58 @@
 
 html,
 body {
-  margin: 0;
-  padding: 0;
+  width: 100%;
+  height: 100%;
 }
 
 body {
-  background: var(--color-background);
-  color: var(--color-text);
-  font-family: var(--font-family);
-  font-size: var(--font-size-md);
-  line-height: var(--line-height);
-
   overflow: hidden;
+  background:
+    linear-gradient(
+      180deg,
+      #252525 0%,
+      #1e1e1e 100%
+    );
+
+  color: var(--text-primary);
+
+  font-family: var(--font-family);
+  font-size: 12px;
+  line-height: 1.4;
+
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* =========================================================
-   Typography
-   ========================================================= */
+   TYPOGRAPHY
+========================================================= */
 
 h1,
 h2,
 h3,
 h4,
 h5,
-h6,
+h6 {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
 p {
-  margin: 0;
-}
-
-h1 {
-  font-size: 30px;
-  font-weight: var(--font-weight-bold);
-}
-
-h2 {
-  font-size: 22px;
-  font-weight: var(--font-weight-bold);
-}
-
-h3 {
-  font-size: 16px;
-  font-weight: var(--font-weight-bold);
+  color: var(--text-secondary);
 }
 
 small {
-  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+}
+
+strong {
+  font-weight: 700;
 }
 
 /* =========================================================
-   Scrollbar
-   ========================================================= */
-
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #313849;
-  border-radius: var(--radius-round);
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #424b61;
-}
-
-/* =========================================================
-   Anchor
-   ========================================================= */
+   LINKS
+========================================================= */
 
 a {
   color: inherit;
@@ -185,268 +121,79 @@ a {
 }
 
 /* =========================================================
-   Input
-   ========================================================= */
-
-input,
-select,
-textarea,
-button {
-  font-family: inherit;
-}
-
-input,
-select,
-textarea {
-  width: 100%;
-
-  border: 1px solid var(--color-border);
-  background: var(--color-surface-2);
-  color: var(--color-text);
-
-  border-radius: var(--radius-sm);
-
-  padding: 10px 12px;
-
-  outline: none;
-
-  transition:
-    border-color var(--transition-fast),
-    background var(--transition-fast);
-}
-
-input:focus,
-select:focus,
-textarea:focus {
-  border-color: var(--color-primary);
-  background: #222838;
-}
-
-textarea {
-  resize: vertical;
-  min-height: 80px;
-}
-
-/* =========================================================
-   Button
-   ========================================================= */
+   BUTTON
+========================================================= */
 
 button {
   border: none;
   outline: none;
-
   cursor: pointer;
+
+  font-family: inherit;
 
   transition:
     background var(--transition-fast),
+    border-color var(--transition-fast),
     transform var(--transition-fast),
     opacity var(--transition-fast);
 }
 
 button:active {
-  transform: scale(0.98);
+  transform: scale(0.985);
 }
 
 button:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
 /* =========================================================
-   Common Button Style
-   ========================================================= */
+   INPUT
+========================================================= */
 
-.primary-button,
-.secondary-button,
-.danger-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+input,
+textarea,
+select {
+  border: none;
+  outline: none;
 
-  gap: 8px;
+  font-family: inherit;
+  font-size: inherit;
 
-  min-height: 42px;
-
-  padding: 0 16px;
-
-  border-radius: var(--radius-round);
-
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-medium);
+  background: transparent;
+  color: var(--text-primary);
 }
 
-.primary-button {
-  background: var(--color-primary);
-  color: white;
-}
-
-.primary-button:hover {
-  background: var(--color-primary-hover);
-}
-
-.secondary-button {
-  background: var(--color-surface-2);
-  color: var(--color-text);
-}
-
-.secondary-button:hover {
-  background: #2b3244;
-}
-
-.danger-button {
-  background: rgba(239, 68, 68, 0.15);
-  color: #ff8d8d;
-}
-
-.danger-button:hover {
-  background: rgba(239, 68, 68, 0.24);
+input::placeholder,
+textarea::placeholder {
+  color: #7d7d7d;
 }
 
 /* =========================================================
-   Workspace Header
-   ========================================================= */
+   SCROLLBAR
+========================================================= */
 
-.workspace-header {
-  height: var(--header-height);
-
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-
-  padding: 0 20px;
-
-  border-bottom: 1px solid var(--color-border);
-
-  background: rgba(18, 20, 28, 0.92);
-
-  backdrop-filter: blur(14px);
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
 
-.workspace-header-left,
-.workspace-header-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+::-webkit-scrollbar-track {
+  background: rgba(255,255,255,0.02);
 }
 
-.workspace-title {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255,255,255,0.12);
 }
 
-.workspace-title h1 {
-  font-size: 18px;
-}
-
-.workspace-title span {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-}
-
-.workspace-status {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-
-  padding: 6px 12px;
-
-  border-radius: var(--radius-round);
-
-  background: var(--color-surface-2);
-
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-}
-
-.workspace-status.success {
-  background: rgba(34, 197, 94, 0.14);
-  color: #7be8a0;
-}
-
-.workspace-status.warning {
-  background: rgba(245, 159, 0, 0.14);
-  color: #ffd166;
-}
-
-.workspace-status.primary {
-  background: rgba(91, 140, 255, 0.14);
-  color: #8fb2ff;
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.2);
 }
 
 /* =========================================================
-   Section Common
-   ========================================================= */
-
-.section-kicker {
-  color: var(--color-text-soft);
-
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-
-  text-transform: uppercase;
-}
-
-.section-title {
-  margin-top: 2px;
-
-  font-size: 18px;
-  font-weight: var(--font-weight-bold);
-}
-
-/* =========================================================
-   Card
-   ========================================================= */
-
-.surface-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-
-  border-radius: var(--radius-lg);
-
-  box-shadow: var(--shadow-sm);
-}
-
-/* =========================================================
-   Status Pill
-   ========================================================= */
-
-.status-pill {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-
-  min-height: 28px;
-
-  padding: 0 12px;
-
-  border-radius: var(--radius-round);
-
-  background: var(--color-surface-2);
-
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-}
-
-.status-pill.success {
-  background: rgba(34, 197, 94, 0.14);
-  color: #7be8a0;
-}
-
-.status-pill.warning {
-  background: rgba(245, 159, 0, 0.14);
-  color: #ffd166;
-}
-
-.status-pill.primary {
-  background: rgba(91, 140, 255, 0.14);
-  color: #8fb2ff;
-}
-
-/* =========================================================
-   Utility
-   ========================================================= */
+   COMMON LAYOUT
+========================================================= */
 
 .hidden {
   display: none !important;
@@ -456,9 +203,8 @@ button:disabled {
   display: flex;
 }
 
-.flex-column {
-  display: flex;
-  flex-direction: column;
+.grid {
+  display: grid;
 }
 
 .center {
@@ -467,101 +213,288 @@ button:disabled {
   justify-content: center;
 }
 
-.gap-xs {
-  gap: var(--space-xs);
+.grow {
+  flex: 1;
 }
 
-.gap-sm {
-  gap: var(--space-sm);
-}
-
-.gap-md {
-  gap: var(--space-md);
-}
-
-.w-full {
+.full-width {
   width: 100%;
 }
 
-.h-full {
+.full-height {
   height: 100%;
 }
 
 /* =========================================================
-   Plotly Container
-   ========================================================= */
+   CARD
+========================================================= */
 
-.plotly-chart {
-  width: 100%;
-  height: 100%;
+.panel-card {
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,0.02),
+      rgba(255,255,255,0.01)
+    );
+
+  box-shadow: var(--shadow-soft);
 }
 
 /* =========================================================
-   Popup Backdrop
-   ========================================================= */
+   FIELD
+========================================================= */
 
-.popup-backdrop {
-  position: fixed;
-  inset: 0;
+.field-label {
+  display: block;
 
-  background: var(--color-overlay);
+  margin-bottom: 6px;
 
+  color: var(--text-muted);
+
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.field-input,
+.field-select,
+.field-textarea,
+.readonly-field {
+  width: 100%;
+  min-height: 34px;
+
+  padding: 0 10px;
+
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+
+  background: rgba(0,0,0,0.12);
+
+  color: var(--text-primary);
+
+  transition:
+    border-color var(--transition-fast),
+    background var(--transition-fast);
+}
+
+.field-input:focus,
+.field-select:focus,
+.field-textarea:focus {
+  border-color: rgba(118,168,120,0.45);
+
+  background: rgba(0,0,0,0.2);
+}
+
+.field-textarea {
+  min-height: 90px;
+
+  padding: 10px;
+
+  resize: vertical;
+}
+
+.readonly-field {
   display: flex;
+  align-items: center;
+
+  color: var(--text-secondary);
+}
+
+/* =========================================================
+   COMMON BUTTONS
+========================================================= */
+
+.primary-btn,
+.secondary-btn,
+.danger-btn,
+.ghost-btn,
+.mini-btn {
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+
+  background: var(--bg-secondary);
+
+  color: var(--text-primary);
+}
+
+.primary-btn {
+  background: var(--accent-primary);
+  color: #ffffff;
+}
+
+.primary-btn:hover {
+  background: #88bb8a;
+}
+
+.secondary-btn:hover,
+.mini-btn:hover,
+.ghost-btn:hover {
+  background: rgba(255,255,255,0.06);
+}
+
+.danger-btn {
+  background: rgba(184,106,106,0.12);
+  color: #f2b8b8;
+}
+
+.danger-btn:hover {
+  background: rgba(184,106,106,0.2);
+}
+
+.mini-btn {
+  min-height: 28px;
+
+  padding: 0 10px;
+
+  font-size: 10px;
+}
+
+/* =========================================================
+   STATUS
+========================================================= */
+
+.status-badge {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
 
-  z-index: var(--z-popup);
-}
-
-/* =========================================================
-   Assistant Floating
-   ========================================================= */
-
-.assistant-floating-button {
-  position: fixed;
-
-  right: 28px;
-  bottom: 28px;
-
-  width: 62px;
-  height: 62px;
-
-  border-radius: 50%;
-
-  background: linear-gradient(
-    135deg,
-    var(--color-primary),
-    #7c4dff
-  );
-
-  color: white;
-
-  font-size: 15px;
-  font-weight: 700;
-
-  box-shadow: var(--shadow-lg);
-
-  z-index: var(--z-floating);
-}
-
-.assistant-floating-button:hover {
-  transform: translateY(-2px);
-}
-
-/* =========================================================
-   Loading
-   ========================================================= */
-
-.loading-spinner {
-  width: 22px;
+  min-width: 70px;
   height: 22px;
 
+  padding: 0 8px;
+
+  border-radius: 999px;
+
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.status-done {
+  background: rgba(118,168,120,0.18);
+  color: #bfe4c0;
+}
+
+.status-running {
+  background: rgba(141,156,183,0.18);
+  color: #cdd6e8;
+}
+
+.status-error {
+  background: rgba(184,106,106,0.18);
+  color: #f2b8b8;
+}
+
+.status-waiting {
+  background: rgba(255,255,255,0.08);
+  color: #cccccc;
+}
+
+/* =========================================================
+   EMPTY BOX
+========================================================= */
+
+.empty-box {
+  display: grid;
+  place-items: center;
+
+  min-height: 88px;
+
+  padding: 12px;
+
+  border: 1px dashed rgba(255,255,255,0.1);
+  border-radius: var(--radius-md);
+
+  color: var(--text-muted);
+
+  text-align: center;
+  line-height: 1.6;
+}
+
+/* =========================================================
+   RESULT BOX
+========================================================= */
+
+.result-box {
+  padding: 12px;
+
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,0.03),
+      rgba(255,255,255,0.01)
+    );
+
+  color: var(--text-secondary);
+
+  line-height: 1.65;
+}
+
+/* =========================================================
+   ANALYSIS TAG
+========================================================= */
+
+.analysis-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  height: 22px;
+
+  padding: 0 8px;
+
+  border-radius: 999px;
+
+  background: rgba(141,156,183,0.15);
+
+  color: #d9e0f3;
+
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+/* =========================================================
+   DIVIDER
+========================================================= */
+
+.divider {
+  width: 100%;
+  height: 1px;
+
+  background: var(--border-primary);
+}
+
+/* =========================================================
+   CANVAS
+========================================================= */
+
+canvas {
+  display: block;
+}
+
+/* =========================================================
+   LOADING
+========================================================= */
+
+.loading-spinner {
+  width: 18px;
+  height: 18px;
+
+  border: 2px solid rgba(255,255,255,0.1);
+  border-top-color: rgba(255,255,255,0.6);
+
   border-radius: 50%;
 
-  border: 2px solid rgba(255, 255, 255, 0.18);
-  border-top-color: white;
-
-  animation: ts-spin 0.7s linear infinite;
+  animation: ts-spin 0.8s linear infinite;
 }
 
 @keyframes ts-spin {
@@ -571,14 +504,41 @@ button:disabled {
 }
 
 /* =========================================================
-   Fade Animation
-   ========================================================= */
+   TOOLTIP
+========================================================= */
 
-.fade-in {
-  animation: ts-fade-in 0.22s ease;
+.tooltip {
+  position: fixed;
+  z-index: 9999;
+
+  max-width: 220px;
+
+  padding: 8px 10px;
+
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-sm);
+
+  background: rgba(28,28,28,0.96);
+
+  color: var(--text-secondary);
+
+  font-size: 10px;
+  line-height: 1.5;
+
+  pointer-events: none;
+
+  box-shadow: var(--shadow-strong);
 }
 
-@keyframes ts-fade-in {
+/* =========================================================
+   ANIMATION
+========================================================= */
+
+.fade-in {
+  animation: fade-in 0.18s ease;
+}
+
+@keyframes fade-in {
   from {
     opacity: 0;
     transform: translateY(4px);
@@ -590,41 +550,27 @@ button:disabled {
   }
 }
 
-/* =========================================================
-   Responsive
-   ========================================================= */
+.scale-in {
+  animation: scale-in 0.16s ease;
+}
 
-@media (max-width: 1024px) {
-  body {
-    overflow: auto;
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
   }
 
-  .workspace-header {
-    padding: 0 14px;
-  }
-
-  .workspace-title h1 {
-    font-size: 16px;
+  to {
+    opacity: 1;
+    transform: scale(1);
   }
 }
 
-@media (max-width: 768px) {
-  .workspace-header {
-    flex-direction: column;
-    align-items: flex-start;
+/* =========================================================
+   SELECTION
+========================================================= */
 
-    gap: 10px;
-
-    height: auto;
-
-    padding: 14px;
-  }
-
-  .assistant-floating-button {
-    right: 18px;
-    bottom: 18px;
-
-    width: 56px;
-    height: 56px;
-  }
+::selection {
+  background: rgba(118,168,120,0.35);
+  color: #ffffff;
 }

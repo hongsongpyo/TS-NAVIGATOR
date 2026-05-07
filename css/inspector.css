@@ -1,13 +1,14 @@
 /* =========================================================
    TS Navigator - inspector.css
-   Track Inspector
-   ========================================================= */
+========================================================= */
 
 /* =========================================================
-   Inspector Root
-   ========================================================= */
+   INSPECTOR ROOT
+========================================================= */
 
-#trackInspector {
+.track-inspector {
+  position: relative;
+
   width: 100%;
   height: 100%;
 
@@ -15,501 +16,657 @@
   flex-direction: column;
 
   overflow: hidden;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,0.025),
+      rgba(255,255,255,0.01)
+    );
+
+  backdrop-filter: blur(12px);
 }
 
 /* =========================================================
-   Inspector Header
-   ========================================================= */
+   INSPECTOR OPEN / CLOSE
+========================================================= */
+
+.track-inspector.inspector-open {
+  min-width: 280px;
+}
+
+.track-inspector.inspector-closed {
+  min-width: 52px;
+  width: 52px;
+}
+
+.track-inspector.inspector-closed
+.inspector-body,
+.track-inspector.inspector-closed
+.inspector-footer {
+  display: none;
+}
+
+.track-inspector.inspector-closed
+.inspector-header {
+  justify-content: center;
+}
+
+.track-inspector.inspector-closed
+.inspector-title {
+  display: none;
+}
+
+/* =========================================================
+   HEADER
+========================================================= */
 
 .inspector-header {
-  flex-shrink: 0;
-
-  height: 72px;
+  width: 100%;
+  height: 52px;
 
   display: flex;
   align-items: center;
   justify-content: space-between;
 
-  padding: 18px 18px 14px;
+  padding: 0 12px;
 
-  border-bottom: 1px solid var(--color-border);
-
-  background:
-    linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 0.02),
-      transparent
-    );
-}
-
-.inspector-toggle-button {
-  width: 34px;
-  height: 34px;
-
-  border-radius: 12px;
-
-  background: var(--color-surface-2);
-  color: var(--color-text);
-
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.inspector-toggle-button:hover {
-  background: var(--color-surface-3);
-}
-
-/* =========================================================
-   Empty State
-   ========================================================= */
-
-.inspector-empty {
-  flex: 1;
-
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-
-  gap: 10px;
-
-  padding: 24px;
-
-  text-align: center;
-}
-
-.inspector-empty p {
-  color: var(--color-text);
-
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.inspector-empty span {
-  color: var(--color-text-soft);
-
-  font-size: 13px;
-  line-height: 1.7;
-}
-
-/* =========================================================
-   Selected Track Panel
-   ========================================================= */
-
-.selected-track-panel {
-  flex: 1;
-
-  overflow-y: auto;
-
-  padding: 18px;
-
-  display: flex;
-  flex-direction: column;
-
-  gap: 18px;
-}
-
-/* =========================================================
-   Selected Track Summary
-   ========================================================= */
-
-.selected-track-summary {
-  display: flex;
-  align-items: center;
-
-  gap: 14px;
-
-  padding: 16px;
-
-  border-radius: 18px;
+  border-bottom:
+    1px solid rgba(255,255,255,0.06);
 
   background:
     linear-gradient(
       180deg,
-      rgba(255, 255, 255, 0.03),
-      rgba(255, 255, 255, 0.015)
+      rgba(255,255,255,0.035),
+      rgba(255,255,255,0.015)
     );
-
-  border: 1px solid rgba(255, 255, 255, 0.04);
-}
-
-.selected-track-color {
-  width: 16px;
-  height: 64px;
-
-  border-radius: 999px;
 
   flex-shrink: 0;
 }
 
-.selected-track-label {
-  color: var(--color-text-soft);
+.inspector-title {
+  color: #f1f1f1;
 
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 10px;
+  font-weight: 800;
   letter-spacing: 0.08em;
-
-  text-transform: uppercase;
-
-  margin-bottom: 4px;
 }
 
-.selected-track-summary h3 {
-  font-size: 17px;
-  line-height: 1.35;
-
-  word-break: break-word;
-}
-
-/* =========================================================
-   Status Row
-   ========================================================= */
-
-.inspector-status-row {
+.inspector-header-actions {
   display: flex;
   align-items: center;
+  gap: 6px;
+}
 
-  gap: 10px;
+.inspector-icon-btn {
+  width: 28px;
+  height: 28px;
 
-  flex-wrap: wrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 8px;
+
+  background:
+    rgba(255,255,255,0.04);
+
+  color: #d8d8d8;
+
+  font-size: 10px;
+}
+
+.inspector-icon-btn:hover {
+  background:
+    rgba(255,255,255,0.08);
 }
 
 /* =========================================================
-   Inspector Section
-   ========================================================= */
+   BODY
+========================================================= */
 
-.inspector-section {
+.inspector-body {
+  flex: 1;
+
+  overflow-y: auto;
+
+  padding: 12px;
+
   display: flex;
   flex-direction: column;
-
   gap: 14px;
+}
 
-  padding: 16px;
+/* =========================================================
+   SECTION
+========================================================= */
 
-  border-radius: 18px;
+.inspector-section {
+  border:
+    1px solid rgba(255,255,255,0.06);
 
-  background: rgba(255, 255, 255, 0.02);
+  border-radius: 14px;
 
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,0.025),
+      rgba(255,255,255,0.01)
+    );
+
+  overflow: hidden;
+}
+
+.inspector-section-header {
+  height: 38px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 0 12px;
+
+  border-bottom:
+    1px solid rgba(255,255,255,0.05);
 }
 
 .inspector-section-title {
-  color: var(--color-text);
+  color: #9f9f9f;
 
-  font-size: 13px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.inspector-section-body {
+  padding: 12px;
+}
+
+/* =========================================================
+   PROJECT STATUS
+========================================================= */
+
+.project-status-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.project-status-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.project-status-label {
+  color: #9d9d9d;
+
+  font-size: 10px;
+}
+
+.project-status-value {
+  color: #f1f1f1;
+
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* =========================================================
+   TRACK INFO
+========================================================= */
+
+.track-info-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.track-info-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.track-info-label {
+  margin-bottom: 6px;
+
+  color: #8d8d8d;
+
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.track-info-value {
+  color: #f1f1f1;
+
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+/* =========================================================
+   TRACK COLOR
+========================================================= */
+
+.track-color-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.track-color-preview {
+  width: 20px;
+  height: 20px;
+
+  border-radius: 50%;
+
+  border:
+    1px solid rgba(255,255,255,0.1);
+
+  background: #76a878;
+}
+
+.track-color-input {
+  flex: 1;
+
+  height: 32px;
+
+  padding: 0 10px;
+
+  border:
+    1px solid rgba(255,255,255,0.08);
+
+  border-radius: 10px;
+
+  background:
+    rgba(0,0,0,0.14);
+
+  color: #f1f1f1;
+}
+
+/* =========================================================
+   TRACK ACTIONS
+========================================================= */
+
+.track-action-list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.track-action-btn {
+  min-height: 34px;
+
+  padding: 0 10px;
+
+  border:
+    1px solid rgba(255,255,255,0.08);
+
+  border-radius: 10px;
+
+  background:
+    rgba(255,255,255,0.03);
+
+  color: #d8d8d8;
+
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.track-action-btn:hover {
+  background:
+    rgba(255,255,255,0.08);
+}
+
+.track-action-btn.danger {
+  background:
+    rgba(184,106,106,0.12);
+
+  color: #f1b8b8;
+}
+
+.track-action-btn.danger:hover {
+  background:
+    rgba(184,106,106,0.2);
+}
+
+/* =========================================================
+   ANALYSIS STACK
+========================================================= */
+
+.analysis-stack-list {
+  display: grid;
+  gap: 10px;
+
+  max-height: 320px;
+
+  overflow-y: auto;
+}
+
+.analysis-stack-card {
+  position: relative;
+
+  padding: 12px;
+
+  border:
+    1px solid rgba(255,255,255,0.06);
+
+  border-radius: 12px;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,0.03),
+      rgba(255,255,255,0.012)
+    );
+
+  transition:
+    border-color 0.16s ease,
+    transform 0.16s ease,
+    background 0.16s ease;
+}
+
+.analysis-stack-card:hover {
+  transform: translateY(-1px);
+
+  border-color:
+    rgba(255,255,255,0.12);
+}
+
+.analysis-stack-card.selected {
+  border-color:
+    rgba(118,168,120,0.42);
+
+  background:
+    rgba(118,168,120,0.06);
+}
+
+.analysis-stack-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  margin-bottom: 10px;
+}
+
+.analysis-stack-name {
+  color: #f1f1f1;
+
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.analysis-stack-time {
+  color: #8f8f8f;
+
+  font-size: 8px;
+}
+
+.analysis-stack-status {
+  margin-bottom: 8px;
+}
+
+.analysis-stack-summary {
+  color: #bbbbbb;
+
+  font-size: 9px;
+  line-height: 1.65;
+}
+
+.analysis-stack-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+
+  margin-top: 10px;
+}
+
+.analysis-stack-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 20px;
+
+  padding: 0 8px;
+
+  border-radius: 999px;
+
+  background:
+    rgba(255,255,255,0.05);
+
+  color: #d2d2d2;
+
+  font-size: 8px;
   font-weight: 700;
   letter-spacing: 0.04em;
 }
 
 /* =========================================================
-   Inspector Field
-   ========================================================= */
+   RESULT PANEL
+========================================================= */
 
-.inspector-field {
+.analysis-result-panel {
   display: flex;
   flex-direction: column;
-
-  gap: 8px;
+  gap: 12px;
 }
 
-.inspector-field span {
-  color: var(--color-text-muted);
+.analysis-result-card {
+  padding: 14px;
 
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.inspector-field input,
-.inspector-field select {
-  min-height: 42px;
-
-  border-radius: 12px;
-}
-
-.inspector-field input[type="color"] {
-  padding: 4px;
-
-  cursor: pointer;
-}
-
-/* =========================================================
-   Button Grid
-   ========================================================= */
-
-.inspector-button-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-
-  gap: 10px;
-}
-
-.inspector-action-button {
-  min-height: 40px;
-
-  padding: 0 12px;
-
-  border-radius: 12px;
-
-  background: var(--color-surface-2);
-  color: var(--color-text);
-
-  font-size: 12px;
-  font-weight: 600;
-
-  border: 1px solid transparent;
-}
-
-.inspector-action-button:hover {
-  background: var(--color-surface-3);
-
-  border-color: rgba(255, 255, 255, 0.06);
-}
-
-.inspector-action-button.danger {
-  color: #ff9d9d;
-
-  background: rgba(239, 68, 68, 0.08);
-}
-
-.inspector-action-button.danger:hover {
-  background: rgba(239, 68, 68, 0.16);
-}
-
-/* =========================================================
-   Process List
-   ========================================================= */
-
-.inspector-process-list {
-  display: flex;
-  flex-direction: column;
-
-  gap: 10px;
-}
-
-.process-button {
-  min-height: 44px;
-
-  padding: 0 14px;
+  border:
+    1px solid rgba(255,255,255,0.06);
 
   border-radius: 14px;
 
-  background: rgba(255, 255, 255, 0.03);
-  color: var(--color-text);
-
-  border: 1px solid rgba(255, 255, 255, 0.04);
-
-  text-align: left;
-
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.process-button:hover {
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.process-button.primary {
   background:
     linear-gradient(
-      135deg,
-      rgba(91, 140, 255, 0.18),
-      rgba(124, 77, 255, 0.18)
-    );
-
-  border-color: rgba(91, 140, 255, 0.18);
-
-  color: #c6d6ff;
-}
-
-.process-button.primary:hover {
-  background:
-    linear-gradient(
-      135deg,
-      rgba(91, 140, 255, 0.24),
-      rgba(124, 77, 255, 0.24)
+      180deg,
+      rgba(255,255,255,0.03),
+      rgba(255,255,255,0.01)
     );
 }
 
-.process-button.disabled {
-  opacity: 0.45;
+.analysis-result-title {
+  margin-bottom: 10px;
 
-  cursor: not-allowed;
+  color: #f1f1f1;
+
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.analysis-result-content {
+  color: #c4c4c4;
+
+  font-size: 10px;
+  line-height: 1.7;
 }
 
 /* =========================================================
-   Summary List
-   ========================================================= */
+   METRIC PREVIEW
+========================================================= */
 
-.inspector-summary-list {
-  display: flex;
-  flex-direction: column;
-
+.metric-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 10px;
 }
 
-.inspector-summary-row {
+.metric-preview-card {
+  padding: 12px;
+
+  border:
+    1px solid rgba(255,255,255,0.06);
+
+  border-radius: 12px;
+
+  background:
+    rgba(255,255,255,0.02);
+}
+
+.metric-preview-label {
+  margin-bottom: 6px;
+
+  color: #8f8f8f;
+
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.metric-preview-value {
+  color: #f1f1f1;
+
+  font-size: 16px;
+  font-weight: 800;
+}
+
+/* =========================================================
+   RECOMMENDATION PANEL
+========================================================= */
+
+.recommendation-list {
+  display: grid;
+  gap: 10px;
+}
+
+.recommendation-item {
+  padding: 12px;
+
+  border-left:
+    3px solid rgba(118,168,120,0.55);
+
+  border-radius: 10px;
+
+  background:
+    rgba(118,168,120,0.06);
+}
+
+.recommendation-title {
+  margin-bottom: 6px;
+
+  color: #e5f4e6;
+
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.recommendation-message {
+  color: #c9d7ca;
+
+  font-size: 9px;
+  line-height: 1.65;
+}
+
+/* =========================================================
+   EMPTY
+========================================================= */
+
+.inspector-empty {
+  display: grid;
+  place-items: center;
+
+  min-height: 100px;
+
+  border:
+    1px dashed rgba(255,255,255,0.08);
+
+  border-radius: 12px;
+
+  color: #8d8d8d;
+
+  font-size: 10px;
+  line-height: 1.7;
+  text-align: center;
+}
+
+/* =========================================================
+   FOOTER
+========================================================= */
+
+.inspector-footer {
+  padding: 10px 12px;
+
+  border-top:
+    1px solid rgba(255,255,255,0.06);
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,0.02),
+      rgba(255,255,255,0.01)
+    );
+
+  flex-shrink: 0;
+}
+
+.inspector-footer-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-
-  gap: 12px;
-
-  padding: 10px 12px;
-
-  border-radius: 12px;
-
-  background: rgba(255, 255, 255, 0.025);
 }
 
-.inspector-summary-row span {
-  color: var(--color-text-muted);
+.inspector-footer-text {
+  color: #8f8f8f;
 
-  font-size: 12px;
+  font-size: 9px;
 }
 
-.inspector-summary-row strong {
-  color: var(--color-text);
+.inspector-footer-btn {
+  min-width: 80px;
+  height: 30px;
 
-  font-size: 12px;
-  font-weight: 700;
+  padding: 0 10px;
 
-  text-align: right;
+  border-radius: 10px;
 
-  word-break: break-word;
-}
-
-/* =========================================================
-   Wide Button
-   ========================================================= */
-
-.inspector-wide-button {
-  width: 100%;
-
-  min-height: 46px;
-
-  border-radius: 14px;
-
-  background: var(--color-surface-2);
-  color: var(--color-text);
-
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.inspector-wide-button:hover {
-  background: var(--color-surface-3);
-}
-
-.inspector-wide-button.primary {
   background:
-    linear-gradient(
-      135deg,
-      var(--color-primary),
-      #7c4dff
-    );
+    rgba(255,255,255,0.05);
 
-  color: white;
+  color: #dddddd;
 
-  box-shadow:
-    0 12px 28px rgba(91, 140, 255, 0.18);
+  font-size: 10px;
+  font-weight: 700;
 }
 
-.inspector-wide-button.primary:hover {
-  transform: translateY(-1px);
+.inspector-footer-btn:hover {
+  background:
+    rgba(255,255,255,0.08);
 }
 
 /* =========================================================
-   Scrollbar
-   ========================================================= */
+   SCROLLBAR
+========================================================= */
 
-.selected-track-panel::-webkit-scrollbar {
-  width: 8px;
+.track-inspector ::-webkit-scrollbar {
+  width: 7px;
 }
 
-.selected-track-panel::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.08);
-
-  border-radius: 999px;
+.track-inspector ::-webkit-scrollbar-track {
+  background:
+    rgba(255,255,255,0.015);
 }
 
-/* =========================================================
-   Closed Inspector
-   ========================================================= */
-
-.track-inspector-column.closed .inspector-header {
-  justify-content: center;
-
-  padding: 10px 4px;
-}
-
-.track-inspector-column.closed .inspector-toggle-button {
-  width: 28px;
-  height: 48px;
-
+.track-inspector ::-webkit-scrollbar-thumb {
   border-radius: 999px;
 
-  font-size: 11px;
+  background:
+    rgba(255,255,255,0.1);
+}
+
+.track-inspector ::-webkit-scrollbar-thumb:hover {
+  background:
+    rgba(255,255,255,0.18);
 }
 
 /* =========================================================
-   Responsive
-   ========================================================= */
+   RESPONSIVE
+========================================================= */
 
-@media (max-width: 1200px) {
-  .selected-track-panel {
-    padding: 14px;
-  }
-
-  .inspector-section {
-    padding: 14px;
-  }
-
-  .selected-track-summary {
-    padding: 14px;
-  }
-}
-
-@media (max-width: 900px) {
-  #trackInspector {
-    min-height: 100%;
-  }
-
-  .selected-track-panel {
-    overflow: visible;
-  }
-
-  .inspector-button-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 640px) {
-  .inspector-header {
-    height: auto;
-
-    align-items: flex-start;
-
-    gap: 12px;
-
-    padding: 14px;
-  }
-
-  .selected-track-summary {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .selected-track-color {
-    width: 100%;
-    height: 10px;
-  }
-
-  .inspector-status-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .status-pill {
-    width: 100%;
+@media (max-width: 960px) {
+  .track-inspector {
+    display: none;
   }
 }

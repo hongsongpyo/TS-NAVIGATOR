@@ -1,180 +1,593 @@
 <!DOCTYPE html>
 <html lang="ko">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  />
 
-    <title>TS Navigator Workspace</title>
+  <title>TS Navigator Workspace</title>
 
-    <!-- =====================================================
-         CSS
-         ===================================================== -->
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/workspace.css" />
+</head>
 
-    <link rel="stylesheet" href="./css/base.css" />
-    <link rel="stylesheet" href="./css/workspace.css" />
+<body>
+  <!-- ======================================================
+       APP SHELL
+  ======================================================= -->
 
-    <link rel="stylesheet" href="./css/inspector.css" />
-    <link rel="stylesheet" href="./css/timeline.css" />
-    <link rel="stylesheet" href="./css/region.css" />
+  <div class="workspace-shell">
+    <!-- ======================================================
+         TOP BAR
+    ======================================================= -->
 
-    <link rel="stylesheet" href="./css/popup.css" />
-    <link rel="stylesheet" href="./css/assistant.css" />
-  </head>
+    <header class="topbar">
+      <div class="topbar-left">
+        <button
+          id="goHomeBtn"
+          class="topbar-btn"
+          type="button"
+        >
+          Home
+        </button>
 
-  <body>
-    <main class="workspace-page">
-      <!-- ===================================================
-           Header
-           =================================================== -->
+        <div class="topbar-brand">
+          TS Navigator Workspace
+        </div>
+      </div>
 
-      <header class="workspace-header">
-        <div class="workspace-header-left">
-          <button id="homeButton">Home</button>
+      <div class="topbar-right">
+        <button
+          id="saveProjectBtn"
+          class="topbar-btn"
+          type="button"
+        >
+          Save
+        </button>
 
-          <div class="workspace-title">
-            <h1>TS Navigator Workspace</h1>
-            <span id="workspaceFileName">No file loaded</span>
+        <button
+          id="exportProjectBtn"
+          class="topbar-btn"
+          type="button"
+        >
+          Export
+        </button>
+      </div>
+    </header>
+
+    <!-- ======================================================
+         WORKSPACE BODY
+    ======================================================= -->
+
+    <div class="workspace-body">
+      <!-- ======================================================
+           TRACK INSPECTOR
+      ======================================================= -->
+
+      <aside
+        id="trackInspector"
+        class="track-inspector inspector-open"
+      >
+        <!-- Inspector Header -->
+        <div class="inspector-header">
+          <div class="inspector-title">
+            TRACK INSPECTOR
+          </div>
+
+          <button
+            id="toggleInspectorBtn"
+            class="collapse-btn"
+            type="button"
+          >
+            ◀
+          </button>
+        </div>
+
+        <!-- Project Status -->
+        <section class="inspector-section">
+          <div class="section-title">
+            PROJECT STATUS
+          </div>
+
+          <div class="project-status-list">
+            <div class="status-item">
+              <span class="status-label">State</span>
+              <span
+                id="projectStateText"
+                class="status-value"
+              >
+                Saved
+              </span>
+            </div>
+
+            <div class="status-item">
+              <span class="status-label">Tracks</span>
+              <span
+                id="trackCountText"
+                class="status-value"
+              >
+                0
+              </span>
+            </div>
+
+            <div class="status-item">
+              <span class="status-label">Regions</span>
+              <span
+                id="regionCountText"
+                class="status-value"
+              >
+                1
+              </span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Selected Track -->
+        <section class="inspector-section">
+          <div class="section-title">
+            SELECTED TRACK
+          </div>
+
+          <div id="selectedTrackEmpty" class="empty-box">
+            Track를 선택하세요.
           </div>
 
           <div
-            class="workspace-status"
-            id="workspaceProjectStatus"
+            id="selectedTrackPanel"
+            class="selected-track-panel hidden"
           >
-            Empty
-          </div>
-        </div>
+            <!-- Track Name -->
+            <div class="field-block">
+              <label class="field-label">
+                Track Name
+              </label>
 
-        <div class="workspace-header-right">
-          <button id="saveProjectButton">
-            Save
-          </button>
+              <input
+                id="trackNameInput"
+                class="field-input"
+                type="text"
+              />
+            </div>
 
-          <button id="resetProjectButton">
-            Reset
-          </button>
-        </div>
-      </header>
+            <!-- Track Type -->
+            <div class="field-block">
+              <label class="field-label">
+                Track Type
+              </label>
 
-      <!-- ===================================================
-           Workspace Layout
-           =================================================== -->
+              <div
+                id="trackTypeText"
+                class="readonly-field"
+              >
+                Original Data
+              </div>
+            </div>
 
-      <section
-        class="workspace-layout"
-        id="workspaceLayout"
-        data-inspector="open"
-      >
-        <!-- ===============================================
-             Track Inspector
-             =============================================== -->
+            <!-- Region -->
+            <div class="field-block">
+              <label class="field-label">
+                Region Assignment
+              </label>
 
-        <aside
-          class="workspace-column track-inspector-column"
-          id="trackInspector"
-        >
-          <div class="workspace-column-inner">
-            <!-- inspector.js -->
-          </div>
-        </aside>
+              <select
+                id="trackRegionSelect"
+                class="field-select"
+              ></select>
+            </div>
 
-        <!-- ===============================================
-             Track Timeline
-             =============================================== -->
+            <!-- Track Actions -->
+            <div class="track-action-grid">
+              <button
+                id="toggleTrackVisibilityBtn"
+                class="mini-btn"
+                type="button"
+              >
+                Visibility
+              </button>
 
-        <aside
-          class="workspace-column track-timeline-column"
-          id="trackTimeline"
-        >
-          <div class="workspace-column-inner">
-            <!-- timeline.js -->
-          </div>
-        </aside>
+              <button
+                id="lockTrackBtn"
+                class="mini-btn"
+                type="button"
+              >
+                Lock
+              </button>
 
-        <!-- ===============================================
-             Visualization Region
-             =============================================== -->
+              <button
+                id="duplicateTrackBtn"
+                class="mini-btn"
+                type="button"
+              >
+                Duplicate
+              </button>
 
-        <section
-          class="workspace-column visualization-region-column"
-          id="visualizationRegions"
-        >
-          <div class="workspace-column-inner">
-            <!-- regions.js -->
+              <button
+                id="deleteTrackBtn"
+                class="mini-btn danger"
+                type="button"
+              >
+                Delete
+              </button>
+            </div>
           </div>
         </section>
+
+        <!-- Analysis Stack -->
+        <section class="inspector-section">
+          <div class="section-title">
+            ANALYSIS STACK
+          </div>
+
+          <div
+            id="analysisStackList"
+            class="analysis-stack-list"
+          >
+            <div class="empty-box">
+              아직 분석이 없습니다.
+            </div>
+          </div>
+        </section>
+
+        <!-- Analysis Result -->
+        <section class="inspector-section grow">
+          <div class="section-title">
+            ANALYSIS RESULT
+          </div>
+
+          <div
+            id="analysisResultPanel"
+            class="analysis-result-panel"
+          >
+            결과가 여기에 표시됩니다.
+          </div>
+        </section>
+      </aside>
+
+      <!-- ======================================================
+           TRACK TIMELINE
+      ======================================================= -->
+
+      <section class="timeline-panel">
+        <!-- Timeline Header -->
+        <div class="timeline-header">
+          <div class="timeline-title">
+            TRACK TIMELINE
+          </div>
+
+          <button
+            id="addTrackBtn"
+            class="add-track-btn"
+            type="button"
+          >
+            + Track
+          </button>
+        </div>
+
+        <!-- Track List -->
+        <div
+          id="timelineTrackList"
+          class="timeline-track-list"
+        >
+          <!-- JS Rendering -->
+        </div>
       </section>
 
-      <!-- ===================================================
-           Popup Root
-           =================================================== -->
+      <!-- ======================================================
+           VISUALIZATION REGION
+      ======================================================= -->
 
-      <div id="processPopupRoot"></div>
+      <main class="visualization-panel">
+        <!-- Visualization Header -->
+        <div class="visualization-header">
+          <div class="visualization-title">
+            VISUALIZATION REGION
+          </div>
 
-      <!-- ===================================================
-           AI Assistant Root
-           =================================================== -->
+          <div class="visualization-actions">
+            <button
+              id="addRegionBtn"
+              class="region-btn"
+              type="button"
+            >
+              + Region
+            </button>
+          </div>
+        </div>
 
-      <div id="aiAssistantRoot"></div>
-    </main>
+        <!-- Region Grid -->
+        <div
+          id="visualizationRegionGrid"
+          class="visualization-region-grid"
+        >
+          <!-- Region 01 -->
+          <section
+            class="visual-region"
+            data-region-id="region_01"
+          >
+            <div class="region-head">
+              <div class="region-title">
+                Region 01
+              </div>
 
-    <!-- =====================================================
-         Plotly
-         ===================================================== -->
+              <div class="region-actions">
+                <button
+                  class="region-mini-btn"
+                  data-region-action="maximize"
+                >
+                  □
+                </button>
 
-    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+                <button
+                  class="region-mini-btn"
+                  data-region-action="close"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
 
-    <!-- =====================================================
-         State
-         ===================================================== -->
+            <!-- Chart Area -->
+            <div class="region-chart-area">
+              <canvas
+                id="mainTimeSeriesCanvas"
+                class="region-canvas"
+              ></canvas>
 
-    <script src="./js/state.js"></script>
+              <!-- Empty Overlay -->
+              <div
+                id="regionEmptyOverlay"
+                class="region-empty-overlay"
+              >
+                CSV 파일을 업로드하거나
+                Track을 생성하세요.
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+  </div>
 
-    <!-- =====================================================
-         Utils
-         ===================================================== -->
+  <!-- ======================================================
+       ANALYSIS POPUP
+  ======================================================= -->
 
-    <script src="./js/utils/mathUtils.js"></script>
-    <script src="./js/utils/dateUtils.js"></script>
-    <script src="./js/utils/csvUtils.js"></script>
-    <script src="./js/utils/sampleData.js"></script>
+  <div
+    id="analysisPopupLayer"
+    class="analysis-popup-layer hidden"
+  >
+    <div class="analysis-popup">
+      <!-- Popup Header -->
+      <div class="popup-header">
+        <div
+          id="popupTitle"
+          class="popup-title"
+        >
+          Analysis
+        </div>
 
-    <!-- =====================================================
-         Analysis
-         ===================================================== -->
+        <button
+          id="closePopupBtn"
+          class="popup-close-btn"
+          type="button"
+        >
+          ×
+        </button>
+      </div>
 
-    <script src="./js/analysis/dataStructure.js"></script>
-    <script src="./js/analysis/preprocessing.js"></script>
-    <script src="./js/analysis/denoising.js"></script>
-    <script src="./js/analysis/decomposition.js"></script>
-    <script src="./js/analysis/forecasting.js"></script>
-    <script src="./js/analysis/metrics.js"></script>
+      <!-- Popup Category -->
+      <div class="popup-category-row">
+        <button
+          class="popup-category-btn active"
+          data-popup-category="required"
+        >
+          Required
+        </button>
 
-    <!-- =====================================================
-         Charts
-         ===================================================== -->
+        <button
+          class="popup-category-btn"
+          data-popup-category="optional"
+        >
+          Optional
+        </button>
 
-    <script src="./js/charts/chartCore.js"></script>
-    <script src="./js/charts/timeSeriesChart.js"></script>
-    <script src="./js/charts/forecastChart.js"></script>
-    <script src="./js/charts/metricChart.js"></script>
-    <script src="./js/charts/interaction.js"></script>
+        <button
+          class="popup-category-btn"
+          data-popup-category="auto"
+        >
+          Auto
+        </button>
+      </div>
 
-    <!-- =====================================================
-         UI
-         ===================================================== -->
+      <!-- Popup Menu -->
+      <div
+        id="popupMenuGrid"
+        class="popup-menu-grid"
+      >
+        <!-- REQUIRED -->
+        <button
+          class="popup-analysis-btn"
+          data-analysis-type="Structure"
+        >
+          Structure
+        </button>
 
-    <script src="./js/ui/inspector.js"></script>
-    <script src="./js/ui/timeline.js"></script>
-    <script src="./js/ui/regions.js"></script>
-    <script src="./js/ui/popup.js"></script>
-    <script src="./js/ui/assistant.js"></script>
+        <button
+          class="popup-analysis-btn"
+          data-analysis-type="Missing"
+        >
+          Missing
+        </button>
 
-    <!-- =====================================================
-         Layout / Upload / App
-         ===================================================== -->
+        <button
+          class="popup-analysis-btn"
+          data-analysis-type="Outlier"
+        >
+          Outlier
+        </button>
 
-    <script src="./js/layout.js"></script>
-    <script src="./js/upload.js"></script>
-    <script src="./js/app.js"></script>
-  </body>
+        <button
+          class="popup-analysis-btn"
+          data-analysis-type="Resampling"
+        >
+          Resampling
+        </button>
+
+        <!-- OPTIONAL -->
+        <button
+          class="popup-analysis-btn"
+          data-analysis-type="Smoothing"
+        >
+          Smoothing
+        </button>
+
+        <button
+          class="popup-analysis-btn"
+          data-analysis-type="Decomposition"
+        >
+          Decomposition
+        </button>
+
+        <button
+          class="popup-analysis-btn"
+          data-analysis-type="Stationarity"
+        >
+          Stationarity
+        </button>
+
+        <button
+          class="popup-analysis-btn"
+          data-analysis-type="Feature"
+        >
+          Feature
+        </button>
+
+        <!-- FORECAST -->
+        <button
+          class="popup-analysis-btn"
+          data-analysis-type="Forecast"
+        >
+          Forecast
+        </button>
+
+        <button
+          class="popup-analysis-btn"
+          data-analysis-type="Validation"
+        >
+          Validation
+        </button>
+
+        <button
+          class="popup-analysis-btn"
+          data-analysis-type="Residual"
+        >
+          Residual
+        </button>
+
+        <button
+          class="popup-analysis-btn"
+          data-analysis-type="Metrics"
+        >
+          Metrics
+        </button>
+
+        <button
+          class="popup-analysis-btn"
+          data-analysis-type="Compare"
+        >
+          Compare
+        </button>
+
+        <!-- AUTO -->
+        <button
+          class="popup-analysis-btn auto-analysis-btn"
+          data-analysis-type="Auto Analysis"
+        >
+          Auto Analysis
+        </button>
+      </div>
+
+      <!-- Parameter Area -->
+      <div
+        id="popupParameterPanel"
+        class="popup-parameter-panel"
+      >
+        <div class="parameter-placeholder">
+          분석 항목을 선택하면
+          세부 파라미터가 표시됩니다.
+        </div>
+      </div>
+
+      <!-- Popup Actions -->
+      <div class="popup-actions">
+        <button
+          id="cancelPopupBtn"
+          class="popup-action-btn"
+          type="button"
+        >
+          Cancel
+        </button>
+
+        <button
+          id="runAnalysisBtn"
+          class="popup-action-btn primary"
+          type="button"
+        >
+          Run Analysis
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================
+       SCRIPT
+  ======================================================= -->
+
+  <!-- State -->
+  <script src="js/state.js"></script>
+
+  <!-- Utils -->
+  <script src="js/utils/dateUtils.js"></script>
+  <script src="js/utils/mathUtils.js"></script>
+  <script src="js/utils/csvUtils.js"></script>
+  <script src="js/utils/sampleData.js"></script>
+
+  <!-- Core -->
+  <script src="js/core/layout.js"></script>
+  <script src="js/core/inspector.js"></script>
+  <script src="js/core/timeline.js"></script>
+  <script src="js/core/regions.js"></script>
+  <script src="js/core/popup.js"></script>
+
+  <!-- Charts -->
+  <script src="js/charts/chartCore.js"></script>
+  <script src="js/charts/timeSeriesChart.js"></script>
+  <script src="js/charts/forecastChart.js"></script>
+  <script src="js/charts/metricChart.js"></script>
+  <script src="js/charts/interaction.js"></script>
+
+  <!-- Upload -->
+  <script src="js/upload.js"></script>
+
+  <!-- Analysis -->
+  <script src="js/analysis/structure.js"></script>
+  <script src="js/analysis/missing.js"></script>
+  <script src="js/analysis/outlier.js"></script>
+  <script src="js/analysis/resampling.js"></script>
+  <script src="js/analysis/smoothing.js"></script>
+  <script src="js/analysis/decomposition.js"></script>
+  <script src="js/analysis/stationarity.js"></script>
+  <script src="js/analysis/feature.js"></script>
+  <script src="js/analysis/validation.js"></script>
+  <script src="js/analysis/forecast.js"></script>
+  <script src="js/analysis/residual.js"></script>
+  <script src="js/analysis/metrics.js"></script>
+  <script src="js/analysis/compare.js"></script>
+  <script src="js/analysis/autoAnalysis.js"></script>
+
+  <!-- Assistant -->
+  <script src="js/ui/assistant.js"></script>
+</body>
 </html>
