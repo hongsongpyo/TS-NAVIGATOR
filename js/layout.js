@@ -27,6 +27,9 @@ let workspaceTitle = null;
 let statusDot = null;
 let statusText = null;
 
+let saveBtn = null;
+let exportBtn = null;
+
 /* =========================================================
    2. Layout 상태
 ========================================================= */
@@ -61,18 +64,21 @@ function initLayout() {
 }
 
 function cacheLayoutElements() {
-  workspaceRoot = document.querySelector(".workspace");
-  mainLayout = document.querySelector(".main");
+  workspaceRoot = document.querySelector(".workspace-shell");
+  mainLayout = document.querySelector(".workspace-body");
 
-  homeBtn = document.querySelector(".home-btn");
-  collapseRail = document.querySelector(".collapse-rail");
-  inspectorPanel = document.querySelector(".inspector");
-  timelinePanel = document.querySelector(".timeline");
-  visualizationPanel = document.querySelector(".visualization");
+  homeBtn = document.getElementById("goHomeBtn");
+  collapseRail = document.getElementById("toggleInspectorBtn");
+  inspectorPanel = document.getElementById("trackInspector");
+  timelinePanel = document.querySelector(".timeline-panel");
+  visualizationPanel = document.querySelector(".visualization-panel");
 
-  workspaceTitle = document.querySelector(".title");
-  statusDot = document.querySelector(".status-dot");
-  statusText = document.querySelector(".status-text");
+  workspaceTitle = document.querySelector(".topbar-brand");
+  statusDot = null;
+  statusText = document.getElementById("projectStateText");
+
+  saveBtn = document.getElementById("saveProjectBtn");
+  exportBtn = document.getElementById("exportProjectBtn");
 }
 
 function bindLayoutEvents() {
@@ -87,8 +93,42 @@ function bindLayoutEvents() {
   window.addEventListener("beforeunload", saveWorkspaceState);
 
   document.addEventListener("keydown", handleWorkspaceShortcut);
+
+  if (saveBtn) {
+    saveBtn.addEventListener("click", () => {
+      saveWorkspaceState();
+
+      if (window.TSState?.project) {
+        window.TSState.project.status = "saved";
+        window.TSState.project.updatedAt = new Date().toISOString();
+      }
+
+      renderWorkspaceStatus();
+    });
+  }
+
+  if (exportBtn) {
+    exportBtn.addEventListener("click", exportWorkspaceState);
+  }
 }
 
+function exportWorkspaceState() {
+  if (!window.TSState) return;
+
+  const blob = new Blob(
+    [JSON.stringify(window.TSState, null, 2)],
+    { type: "application/json" }
+  );
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = "ts-navigator-project.json";
+  link.click();
+
+  URL.revokeObjectURL(url);
+}
 /* =========================================================
    4. Workspace 상태 복원
 ========================================================= */
@@ -221,28 +261,18 @@ function applyLayoutRatio() {
   if (!mainLayout) return;
 
   if (TSLayoutState.inspectorCollapsed) {
-    mainLayout.style.gridTemplateColumns = "26px 0px 220px 1fr";
+    mainLayout.style.gridTemplateColumns = "36px 220px 1fr";
 
-    if (collapseRail) {
-      collapseRail.textContent = "›";
-    }
-
-    if (inspectorPanel) {
-      inspectorPanel.classList.add("collapsed");
-    }
+    if (collapseRail) collapseRail.textContent = "▶";
+    if (inspectorPanel) inspectorPanel.classList.add("collapsed");
 
     return;
   }
 
-  mainLayout.style.gridTemplateColumns = "26px 170px 220px 1fr";
+  mainLayout.style.gridTemplateColumns = "18% 10% 72%";
 
-  if (collapseRail) {
-    collapseRail.textContent = "‹";
-  }
-
-  if (inspectorPanel) {
-    inspectorPanel.classList.remove("collapsed");
-  }
+  if (collapseRail) collapseRail.textContent = "◀";
+  if (inspectorPanel) inspectorPanel.classList.remove("collapsed");
 }
 
 function saveLayoutPreference() {
