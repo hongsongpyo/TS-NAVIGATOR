@@ -11,6 +11,11 @@
 
   <link rel="stylesheet" href="css/base.css" />
   <link rel="stylesheet" href="css/workspace.css" />
+  <link rel="stylesheet" href="css/inspector.css" />
+  <link rel="stylesheet" href="css/timeline.css" />
+  <link rel="stylesheet" href="css/region.css" />
+  <link rel="stylesheet" href="css/popup.css" />
+  <link rel="stylesheet" href="css/assistant.css" />
 </head>
 
 <body>
@@ -70,7 +75,6 @@
         id="trackInspector"
         class="track-inspector inspector-open"
       >
-        <!-- Inspector Header -->
         <div class="inspector-header">
           <div class="inspector-title">
             TRACK INSPECTOR
@@ -85,7 +89,6 @@
           </button>
         </div>
 
-        <!-- Project Status -->
         <section class="inspector-section">
           <div class="section-title">
             PROJECT STATUS
@@ -94,37 +97,27 @@
           <div class="project-status-list">
             <div class="status-item">
               <span class="status-label">State</span>
-              <span
-                id="projectStateText"
-                class="status-value"
-              >
+              <span id="projectStateText" class="status-value">
                 Saved
               </span>
             </div>
 
             <div class="status-item">
               <span class="status-label">Tracks</span>
-              <span
-                id="trackCountText"
-                class="status-value"
-              >
+              <span id="trackCountText" class="status-value">
                 0
               </span>
             </div>
 
             <div class="status-item">
               <span class="status-label">Regions</span>
-              <span
-                id="regionCountText"
-                class="status-value"
-              >
+              <span id="regionCountText" class="status-value">
                 1
               </span>
             </div>
           </div>
         </section>
 
-        <!-- Selected Track -->
         <section class="inspector-section">
           <div class="section-title">
             SELECTED TRACK
@@ -138,7 +131,6 @@
             id="selectedTrackPanel"
             class="selected-track-panel hidden"
           >
-            <!-- Track Name -->
             <div class="field-block">
               <label class="field-label">
                 Track Name
@@ -151,21 +143,16 @@
               />
             </div>
 
-            <!-- Track Type -->
             <div class="field-block">
               <label class="field-label">
                 Track Type
               </label>
 
-              <div
-                id="trackTypeText"
-                class="readonly-field"
-              >
+              <div id="trackTypeText" class="readonly-field">
                 Original Data
               </div>
             </div>
 
-            <!-- Region -->
             <div class="field-block">
               <label class="field-label">
                 Region Assignment
@@ -177,7 +164,6 @@
               ></select>
             </div>
 
-            <!-- Track Actions -->
             <div class="track-action-grid">
               <button
                 id="toggleTrackVisibilityBtn"
@@ -214,7 +200,6 @@
           </div>
         </section>
 
-        <!-- Analysis Stack -->
         <section class="inspector-section">
           <div class="section-title">
             ANALYSIS STACK
@@ -230,7 +215,6 @@
           </div>
         </section>
 
-        <!-- Analysis Result -->
         <section class="inspector-section grow">
           <div class="section-title">
             ANALYSIS RESULT
@@ -250,7 +234,6 @@
       ======================================================= -->
 
       <section class="timeline-panel">
-        <!-- Timeline Header -->
         <div class="timeline-header">
           <div class="timeline-title">
             TRACK TIMELINE
@@ -265,7 +248,6 @@
           </button>
         </div>
 
-        <!-- Track List -->
         <div
           id="timelineTrackList"
           class="timeline-track-list"
@@ -279,7 +261,6 @@
       ======================================================= -->
 
       <main class="visualization-panel">
-        <!-- Visualization Header -->
         <div class="visualization-header">
           <div class="visualization-title">
             VISUALIZATION REGION
@@ -296,12 +277,10 @@
           </div>
         </div>
 
-        <!-- Region Grid -->
         <div
           id="visualizationRegionGrid"
           class="visualization-region-grid"
         >
-          <!-- Region 01 -->
           <section
             class="visual-region"
             data-region-id="region_01"
@@ -315,6 +294,7 @@
                 <button
                   class="region-mini-btn"
                   data-region-action="maximize"
+                  type="button"
                 >
                   □
                 </button>
@@ -322,20 +302,19 @@
                 <button
                   class="region-mini-btn"
                   data-region-action="close"
+                  type="button"
                 >
                   ×
                 </button>
               </div>
             </div>
 
-            <!-- Chart Area -->
             <div class="region-chart-area">
               <canvas
                 id="mainTimeSeriesCanvas"
                 class="region-canvas"
               ></canvas>
 
-              <!-- Empty Overlay -->
               <div
                 id="regionEmptyOverlay"
                 class="region-empty-overlay"
@@ -359,12 +338,8 @@
     class="analysis-popup-layer hidden"
   >
     <div class="analysis-popup">
-      <!-- Popup Header -->
       <div class="popup-header">
-        <div
-          id="popupTitle"
-          class="popup-title"
-        >
+        <div id="popupTitle" class="popup-title">
           Analysis
         </div>
 
@@ -377,11 +352,11 @@
         </button>
       </div>
 
-      <!-- Popup Category -->
       <div class="popup-category-row">
         <button
           class="popup-category-btn active"
           data-popup-category="required"
+          type="button"
         >
           Required
         </button>
@@ -389,6 +364,7 @@
         <button
           class="popup-category-btn"
           data-popup-category="optional"
+          type="button"
         >
           Optional
         </button>
@@ -396,120 +372,41 @@
         <button
           class="popup-category-btn"
           data-popup-category="auto"
+          type="button"
         >
           Auto
         </button>
       </div>
 
-      <!-- Popup Menu -->
       <div
         id="popupMenuGrid"
         class="popup-menu-grid"
       >
-        <!-- REQUIRED -->
-        <button
-          class="popup-analysis-btn"
-          data-analysis-type="Structure"
-        >
-          Structure
-        </button>
+        <button class="popup-analysis-btn" data-analysis-type="Structure" type="button">Structure</button>
+        <button class="popup-analysis-btn" data-analysis-type="Missing" type="button">Missing</button>
+        <button class="popup-analysis-btn" data-analysis-type="Outlier" type="button">Outlier</button>
+        <button class="popup-analysis-btn" data-analysis-type="Resampling" type="button">Resampling</button>
 
-        <button
-          class="popup-analysis-btn"
-          data-analysis-type="Missing"
-        >
-          Missing
-        </button>
+        <button class="popup-analysis-btn" data-analysis-type="Smoothing" type="button">Smoothing</button>
+        <button class="popup-analysis-btn" data-analysis-type="Decomposition" type="button">Decomposition</button>
+        <button class="popup-analysis-btn" data-analysis-type="Stationarity" type="button">Stationarity</button>
+        <button class="popup-analysis-btn" data-analysis-type="Feature" type="button">Feature</button>
 
-        <button
-          class="popup-analysis-btn"
-          data-analysis-type="Outlier"
-        >
-          Outlier
-        </button>
+        <button class="popup-analysis-btn" data-analysis-type="Forecast" type="button">Forecast</button>
+        <button class="popup-analysis-btn" data-analysis-type="Validation" type="button">Validation</button>
+        <button class="popup-analysis-btn" data-analysis-type="Residual" type="button">Residual</button>
+        <button class="popup-analysis-btn" data-analysis-type="Metrics" type="button">Metrics</button>
+        <button class="popup-analysis-btn" data-analysis-type="Compare" type="button">Compare</button>
 
-        <button
-          class="popup-analysis-btn"
-          data-analysis-type="Resampling"
-        >
-          Resampling
-        </button>
-
-        <!-- OPTIONAL -->
-        <button
-          class="popup-analysis-btn"
-          data-analysis-type="Smoothing"
-        >
-          Smoothing
-        </button>
-
-        <button
-          class="popup-analysis-btn"
-          data-analysis-type="Decomposition"
-        >
-          Decomposition
-        </button>
-
-        <button
-          class="popup-analysis-btn"
-          data-analysis-type="Stationarity"
-        >
-          Stationarity
-        </button>
-
-        <button
-          class="popup-analysis-btn"
-          data-analysis-type="Feature"
-        >
-          Feature
-        </button>
-
-        <!-- FORECAST -->
-        <button
-          class="popup-analysis-btn"
-          data-analysis-type="Forecast"
-        >
-          Forecast
-        </button>
-
-        <button
-          class="popup-analysis-btn"
-          data-analysis-type="Validation"
-        >
-          Validation
-        </button>
-
-        <button
-          class="popup-analysis-btn"
-          data-analysis-type="Residual"
-        >
-          Residual
-        </button>
-
-        <button
-          class="popup-analysis-btn"
-          data-analysis-type="Metrics"
-        >
-          Metrics
-        </button>
-
-        <button
-          class="popup-analysis-btn"
-          data-analysis-type="Compare"
-        >
-          Compare
-        </button>
-
-        <!-- AUTO -->
         <button
           class="popup-analysis-btn auto-analysis-btn"
           data-analysis-type="Auto Analysis"
+          type="button"
         >
           Auto Analysis
         </button>
       </div>
 
-      <!-- Parameter Area -->
       <div
         id="popupParameterPanel"
         class="popup-parameter-panel"
@@ -520,7 +417,6 @@
         </div>
       </div>
 
-      <!-- Popup Actions -->
       <div class="popup-actions">
         <button
           id="cancelPopupBtn"
@@ -554,12 +450,8 @@
   <script src="js/utils/csvUtils.js"></script>
   <script src="js/utils/sampleData.js"></script>
 
-  <!-- Core -->
-  <script src="js/core/layout.js"></script>
-  <script src="js/core/inspector.js"></script>
-  <script src="js/core/timeline.js"></script>
-  <script src="js/core/regions.js"></script>
-  <script src="js/core/popup.js"></script>
+  <!-- Layout -->
+  <script src="js/layout.js"></script>
 
   <!-- Charts -->
   <script src="js/charts/chartCore.js"></script>
@@ -568,26 +460,35 @@
   <script src="js/charts/metricChart.js"></script>
   <script src="js/charts/interaction.js"></script>
 
-  <!-- Upload -->
-  <script src="js/upload.js"></script>
-
   <!-- Analysis -->
+  <script src="js/analysis/dataStructure.js"></script>
+  <script src="js/analysis/preprocessing.js"></script>
+  <script src="js/analysis/denoising.js"></script>
+  <script src="js/analysis/decomposition.js"></script>
+  <script src="js/analysis/forecasting.js"></script>
+  <script src="js/analysis/metrics.js"></script>
+  <script src="js/analysis/autoAnalysis.js"></script>
+
   <script src="js/analysis/structure.js"></script>
   <script src="js/analysis/missing.js"></script>
   <script src="js/analysis/outlier.js"></script>
   <script src="js/analysis/resampling.js"></script>
   <script src="js/analysis/smoothing.js"></script>
-  <script src="js/analysis/decomposition.js"></script>
   <script src="js/analysis/stationarity.js"></script>
   <script src="js/analysis/feature.js"></script>
   <script src="js/analysis/validation.js"></script>
   <script src="js/analysis/forecast.js"></script>
   <script src="js/analysis/residual.js"></script>
-  <script src="js/analysis/metrics.js"></script>
   <script src="js/analysis/compare.js"></script>
-  <script src="js/analysis/autoAnalysis.js"></script>
 
-  <!-- Assistant -->
+  <!-- UI -->
+  <script src="js/ui/inspector.js"></script>
+  <script src="js/ui/timeline.js"></script>
+  <script src="js/ui/regions.js"></script>
+  <script src="js/ui/popup.js"></script>
   <script src="js/ui/assistant.js"></script>
+
+  <!-- Upload -->
+  <script src="js/upload.js"></script>
 </body>
 </html>
