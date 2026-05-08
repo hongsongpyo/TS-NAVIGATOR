@@ -1,21 +1,25 @@
 /* =========================================================
-   TS Navigator - forecast.js
+   TS Navigator - forecasting.js
    ---------------------------------------------------------
    역할
-   1. 시계열 예측 수행
-   2. Naive / Mean / Moving Average / Exponential Smoothing
-   3. Holt / Holt-Winters / 간이 ARIMA 지원
-   4. Validation 구간 예측값 생성
-   5. Forecast Track 생성 및 Region에 반영
+   1. Forecast 분석 실행 진입점
+   2. 기존 JS 수식 계산 제거
+   3. FastAPI Backend Forecast API 호출
+   4. Forecast Track 생성 및 Region 반영
+   5. 기존 UI 코드와 호환되는 결과 구조 유지
 ========================================================= */
 
 /* =========================================================
    1. Forecast 분석 실행
 ========================================================= */
 
-function runForecastAnalysis(rows, options = {}) {
+async function runForecastAnalysis(rows, options = {}) {
   if (!Array.isArray(rows) || rows.length === 0) {
     return createForecastErrorResult("예측할 데이터가 없습니다.");
+  }
+
+  if (!window.TSApi) {
+    return createForecastErrorResult("TSApi가 로드되지 않았습니다. js/api.js를 먼저 연결하세요.");
   }
 
   const datetimeColumn =
@@ -28,121 +32,76 @@ function runForecastAnalysis(rows, options = {}) {
     window.TSState?.dataset?.targetColumn ||
     inferTargetColumn(rows, datetimeColumn);
 
-  if (!targetColumn) {
-    return createForecastErrorResult("target column을 찾지 못했습니다.");
+  if (!datetimeColumn || !targetColumn) {
+    return createForecastErrorResult("datetime column 또는 target column을 찾지 못했습니다.");
   }
-
-  const model = options.model || "exponential-smoothing";
-  const horizon = Math.max(1, Number(options.horizon || 12));
-  const horizonType = options.horizonType || "relative";
-  const seasonalPeriod = Math.max(2, Number(options.seasonalPeriod || 12));
-  const alpha = Number(options.alpha || 0.3);
-  const beta = Number(options.beta || 0.1);
-  const gamma = Number(options.gamma || 0.1);
-  const arimaOrder = options.arimaOrder || { p: 1, d: 1, q: 1 };
 
   const sortedRows = datetimeColumn && window.TSDateUtils
     ? window.TSDateUtils.sortRowsByDate(rows, datetimeColumn)
     : [...rows];
 
-  const values = getTargetValues(sortedRows, targetColumn).map(toNumber);
-  const cleanValues = values.filter(Number.isFinite);
-
-  if (cleanValues.length < 3) {
-    return createForecastErrorResult("예측을 수행하기에는 유효한 수치 데이터가 부족합니다.");
-  }
-
-  const forecast = forecastValues(cleanValues, {
-    model,
-    horizon,
-    seasonalPeriod,
-    alpha,
-    beta,
-    gamma,
-    arimaOrder
-  });
-
-  const fitted = createFittedValues(cleanValues, {
-    model,
-    seasonalPeriod,
-    alpha,
-    beta,
-    gamma,
-    arimaOrder
-  });
-
-  const forecastDates = createForecastDates(sortedRows, datetimeColumn, horizon);
-  const forecastRows = createForecastRows({
-    baseRows: sortedRows,
-    forecastValues: forecast,
-    forecastDates,
-    datetimeColumn,
-    targetColumn
-  });
-
-  const predictionInterval = createPredictionInterval(cleanValues, forecast);
-
-  const result = {
-    type: "Forecast",
-    status: "done",
-
-    model,
-    horizon,
-    horizonType,
-    seasonalPeriod,
-    alpha,
-    beta,
-    gamma,
-    arimaOrder,
-
+  const payload = window.TSApi.createForecastPayload({
+    rows: sortedRows,
     datetimeColumn,
     targetColumn,
+    frequency:
+      options.frequency ||
+      window.TSState?.dataset?.frequency?.code ||
+      window.TSState?.dataset?.frequency ||
+      null,
 
-    fitted,
-    forecast,
-    predicted: forecast,
-    forecastDates,
-    forecastRows,
+    model: options.model || "auto-arima",
+    horizon: options.horizon || 12,
+    horizonType: options.horizonType || "relative",
 
-    lower: predictionInterval.lower,
-    upper: predictionInterval.upper,
+    seasonalPeriod: options.seasonalPeriod || 12,
+    seasonalModel: options.seasonalModel || "additive",
 
-    before: {
-      rowCount: sortedRows.length,
-      summary: summarizeValues(cleanValues)
-    },
+    alpha: options.alpha ?? 0.3,
+    beta: options.beta ?? 0.1,
+    gamma: options.gamma ?? 0.1,
 
-    after: {
-      forecastCount: forecast.length,
-      lastObserved: cleanValues[cleanValues.length - 1],
-      firstForecast: forecast[0],
-      lastForecast: forecast[forecast.length - 1]
-    },
+    windowSize: options.windowSize || 3,
 
-    outputRows: sortedRows,
+    arimaOrder: normalizeOrder(options.arimaOrder, [1, 1, 1]),
+    sarimaOrder: normalizeOrder(options.sarimaOrder, [1, 1, 1]),
+    sarimaSeasonalOrder: normalizeOrder(options.sarimaSeasonalOrder, [1, 1, 1, 12]),
 
-    messages: createForecastMessages({
-      model,
-      horizon,
-      seasonalPeriod
-    }),
+    testSize: options.testSize || 0.2,
+    confidenceLevel: options.confidenceLevel || 0.95
+  });
 
-    recommendation: createForecastRecommendation({
-      model,
-      horizon,
-      forecast,
-      cleanValues
-    })
-  };
+  const apiResult = await window.TSApi.requestForecast(payload);
 
-  return result;
+  if (window.TSApi.isAPIError(apiResult)) {
+    return createForecastErrorResult(
+      window.TSApi.getAPIErrorMessage(apiResult),
+      {
+        apiResult
+      }
+    );
+  }
+
+  return normalizeForecastResult(apiResult, {
+    originalRows: sortedRows,
+    datetimeColumn,
+    targetColumn,
+    options
+  });
 }
 
 /* =========================================================
    2. Track 기반 Forecast 분석
 ========================================================= */
 
-function runForecastAnalysisOnTrack(trackId, params = {}) {
+async function runForecastAnalysisOnTrack(trackId, params = {}) {
+  if (!window.TSStore) {
+    return {
+      status: "error",
+      message: "TSStore가 로드되지 않았습니다."
+    };
+  }
+
   const sourceTrack = window.TSStore.getTrack(trackId);
 
   if (!sourceTrack) {
@@ -154,745 +113,293 @@ function runForecastAnalysisOnTrack(trackId, params = {}) {
 
   const rows = sourceTrack.data || [];
 
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return {
+      status: "error",
+      message: "기준 Track에 데이터가 없습니다."
+    };
+  }
+
   const datetimeColumn =
+    params.datetimeColumn ||
     sourceTrack.metadata?.datetimeColumn ||
-    window.TSState.dataset.datetimeColumn;
+    window.TSState?.dataset?.datetimeColumn ||
+    inferDatetimeColumn(rows);
 
   const targetColumn =
+    params.targetColumn ||
     sourceTrack.metadata?.targetColumn ||
-    window.TSState.dataset.targetColumn;
+    window.TSState?.dataset?.targetColumn ||
+    inferTargetColumn(rows, datetimeColumn);
 
-  if (!datetimeColumn || !targetColumn || rows.length === 0) {
+  if (!datetimeColumn || !targetColumn) {
     return {
       status: "error",
       message: "예측에 필요한 날짜/값 컬럼이 없습니다."
     };
   }
 
-  const sortedRows = window.TSDateUtils
-    ? window.TSDateUtils.sortRowsByDate(rows, datetimeColumn)
-    : [...rows];
-
-  const testSize = Number(params.testSize || 0.2);
-  const safeTestSize =
-    testSize > 0 && testSize < 1
-      ? testSize
-      : 0.2;
-
-  const testCount = Math.max(
-    1,
-    Math.round(sortedRows.length * safeTestSize)
-  );
-
-  const trainCount = sortedRows.length - testCount;
-
-  if (trainCount < 3) {
-    return {
-      status: "error",
-      message: "train 데이터가 너무 적어 예측을 수행할 수 없습니다."
-    };
-  }
-
-  const trainRows = sortedRows.slice(0, trainCount);
-  const testRows = sortedRows.slice(trainCount);
-
-  const horizon = Math.max(
-    1,
-    Number(params.horizon || testRows.length || 12)
-  );
-
-  const trainValues = trainRows
-    .map(row => Number(row[targetColumn]))
-    .filter(value => Number.isFinite(value));
-
-  if (trainValues.length < 3) {
-    return {
-      status: "error",
-      message: "예측을 수행하기 위한 유효한 train 수치 데이터가 부족합니다."
-    };
-  }
-
-  const model = params.model || "exponential-smoothing";
-  const seasonalPeriod = Number(params.seasonalPeriod || 12);
-
-  const forecastValuesResult = forecastValues(trainValues, {
-    model,
-    horizon,
-    seasonalPeriod,
-    alpha: Number(params.alpha || 0.3),
-    beta: Number(params.beta || 0.1),
-    gamma: Number(params.gamma || 0.1),
-    windowSize: Number(params.windowSize || 3),
-    arimaOrder: params.arimaOrder || { p: 1, d: 1, q: 1 }
+  const result = await runForecastAnalysis(rows, {
+    ...params,
+    datetimeColumn,
+    targetColumn,
+    frequency:
+      params.frequency ||
+      sourceTrack.metadata?.frequency ||
+      window.TSState?.dataset?.frequency?.code ||
+      window.TSState?.dataset?.frequency ||
+      null
   });
 
-  const forecastRows = [];
+  if (result.status === "error") {
+    markLatestForecastStack(trackId, result);
 
-  for (let i = 0; i < horizon; i += 1) {
-    const testRow = testRows[i];
-
-    const forecastDate = testRow
-      ? testRow[datetimeColumn]
-      : createNextForecastDate(trainRows, testRows, datetimeColumn, i);
-
-    forecastRows.push({
-      [datetimeColumn]: forecastDate,
-      [targetColumn]: forecastValuesResult[i],
-      __forecast: true,
-      __forecastIndex: i,
-      __sourceTrackId: sourceTrack.id
-    });
+    return {
+      status: "error",
+      type: "Forecast",
+      message: result.message || result.error_message || "Forecast 실패",
+      result
+    };
   }
 
+  const forecastRows = createForecastRowsFromResult(result, {
+    datetimeColumn,
+    targetColumn,
+    sourceTrackId: sourceTrack.id
+  });
+
   const forecastTrack = window.TSStore.addTrack({
-    name: `Forecast · ${sourceTrack.name}`,
+    name: createForecastTrackName(sourceTrack, result),
     type: "Forecast Data",
     sourceTrackId: sourceTrack.id,
     regionId: sourceTrack.regionId,
     data: forecastRows,
     metadata: {
       ...sourceTrack.metadata,
-      forecastHorizon: horizon,
-      forecastModel: model,
-      testSize: safeTestSize,
-      trainCount,
-      testCount
+      datetimeColumn,
+      targetColumn,
+      forecastHorizon: result.horizon,
+      forecastModel: result.model,
+      frequency: result.frequency,
+      backend: "FastAPI",
+      createdBy: "Forecast"
     }
   });
 
   window.TSStore.commitTrackResult(forecastTrack.id, {
     data: forecastRows,
     metadata: forecastTrack.metadata,
-    result: {
-      type: "Forecast",
-      status: "done",
-      params,
-      messages: [
-        `${trainCount}개 train 데이터로 학습했습니다.`,
-        `${testRows.length}개 test 구간 중 ${horizon}개 시점에 대한 예측 Track이 생성되었습니다.`
-      ]
-    }
+    result
   });
+
+  markLatestForecastStack(trackId, result);
+
+  if (window.TSRegions?.renderAllRegions) {
+    window.TSRegions.renderAllRegions();
+  }
+
+  if (window.TSTimeline?.renderTimeline) {
+    window.TSTimeline.renderTimeline();
+  }
+
+  if (window.TSInspector?.renderInspector) {
+    window.TSInspector.renderInspector();
+  }
 
   return {
     status: "done",
     type: "Forecast",
     forecastTrackId: forecastTrack.id,
-    model,
-    horizon,
-    trainCount,
-    testCount,
-    messages: [
-      `${trainCount}개 train 데이터로 학습했습니다.`,
-      `${horizon}개 시점에 대한 예측 Track이 생성되었습니다.`
+    model: result.model,
+    horizon: result.horizon,
+    result,
+    messages: result.messages?.map(item => item.message) || [
+      "Forecast Track이 생성되었습니다."
     ]
   };
 }
-function createNextForecastDate(trainRows, testRows, datetimeColumn, forecastIndex) {
-  const allKnownRows = [...trainRows, ...testRows];
-
-  const validDates = allKnownRows
-    .map(row => {
-      if (window.TSDateUtils) {
-        return window.TSDateUtils.parseDateValue(row[datetimeColumn]);
-      }
-
-      const date = new Date(row[datetimeColumn]);
-      return Number.isNaN(date.getTime()) ? null : date;
-    })
-    .filter(date => date && !Number.isNaN(date.getTime()));
-
-  if (validDates.length === 0) {
-    return forecastIndex + 1;
-  }
-
-  const frequencyCode =
-    window.TSState?.dataset?.frequency?.code ||
-    "D";
-
-  const baseDate = validDates[validDates.length - 1];
-
-  if (window.TSDateUtils?.addFrequency) {
-    const nextDate = window.TSDateUtils.addFrequency(
-      baseDate,
-      frequencyCode,
-      forecastIndex + 1
-    );
-
-    if (window.TSDateUtils.formatDate) {
-      return window.TSDateUtils.formatDate(nextDate, frequencyCode);
-    }
-
-    return nextDate.toISOString().slice(0, 10);
-  }
-
-  const nextDate = new Date(baseDate);
-  nextDate.setDate(nextDate.getDate() + forecastIndex + 1);
-
-  return nextDate.toISOString().slice(0, 10);
-}
 
 /* =========================================================
-   3. Forecast Values
+   3. Backend 결과 정규화
 ========================================================= */
 
-function forecastValues(values, options = {}) {
-  const model = options.model || "exponential-smoothing";
-  const horizon = Math.max(1, Number(options.horizon || 12));
+function normalizeForecastResult(apiResult, context = {}) {
+  const datetimeColumn = context.datetimeColumn;
+  const targetColumn = context.targetColumn;
+  const originalRows = context.originalRows || [];
+  const options = context.options || {};
 
-  if (model === "naive") {
-    return naiveForecast(values, horizon);
-  }
+  const forecast = apiResult.forecast || [];
+  const fitted = apiResult.fitted || [];
+  const lower = apiResult.lower || [];
+  const upper = apiResult.upper || [];
+  const forecastDates = apiResult.forecast_dates || [];
+  const observedDates = apiResult.observed_dates || [];
+  const observed = apiResult.observed || [];
 
-  if (model === "mean") {
-    return meanForecast(values, horizon);
-  }
-
-  if (model === "moving-average") {
-    return movingAverageForecast(values, horizon, options.windowSize || 3);
-  }
-
-  if (model === "holt") {
-    return holtForecast(values, horizon, {
-      alpha: options.alpha || 0.3,
-      beta: options.beta || 0.1
-    });
-  }
-
-  if (model === "holt-winters") {
-    return holtWintersForecast(values, horizon, {
-      alpha: options.alpha || 0.3,
-      beta: options.beta || 0.1,
-      gamma: options.gamma || 0.1,
-      seasonalPeriod: options.seasonalPeriod || 12
-    });
-  }
-
-  if (model === "arima") {
-    return simpleARIMAForecast(values, horizon, options.arimaOrder || { p: 1, d: 1, q: 1 });
-  }
-
-  return exponentialSmoothingForecast(values, horizon, options.alpha || 0.3);
-}
-
-function createFittedValues(values, options = {}) {
-  const model = options.model || "exponential-smoothing";
-
-  if (model === "naive") {
-    return values.map((value, index) => index === 0 ? NaN : values[index - 1]);
-  }
-
-  if (model === "mean") {
-    return values.map((_, index) => {
-      if (index === 0) return NaN;
-      return meanLocal(values.slice(0, index));
-    });
-  }
-
-  if (model === "moving-average") {
-    return movingAverageFitted(values, options.windowSize || 3);
-  }
-
-  if (model === "holt") {
-    return holtFitted(values, {
-      alpha: options.alpha || 0.3,
-      beta: options.beta || 0.1
-    });
-  }
-
-  if (model === "holt-winters") {
-    return holtWintersFitted(values, {
-      alpha: options.alpha || 0.3,
-      beta: options.beta || 0.1,
-      gamma: options.gamma || 0.1,
-      seasonalPeriod: options.seasonalPeriod || 12
-    });
-  }
-
-  if (model === "arima") {
-    return simpleARIMAFitted(values, options.arimaOrder || { p: 1, d: 1, q: 1 });
-  }
-
-  return exponentialSmoothingFitted(values, options.alpha || 0.3);
-}
-
-/* =========================================================
-   4. 기본 예측 모델
-========================================================= */
-
-function naiveForecast(values, horizon = 1) {
-  const clean = values.filter(Number.isFinite);
-  const lastValue = clean[clean.length - 1];
-
-  return Array.from({ length: horizon }, () => lastValue);
-}
-
-function meanForecast(values, horizon = 1) {
-  const avg = meanLocal(values.filter(Number.isFinite));
-
-  return Array.from({ length: horizon }, () => avg);
-}
-
-function movingAverageForecast(values, horizon = 1, windowSize = 3) {
-  const history = values.filter(Number.isFinite);
-  const forecast = [];
-
-  for (let i = 0; i < horizon; i += 1) {
-    const recent = history.slice(-windowSize);
-    const next = meanLocal(recent);
-
-    forecast.push(next);
-    history.push(next);
-  }
-
-  return forecast;
-}
-
-function exponentialSmoothingForecast(values, horizon = 1, alpha = 0.3) {
-  const smoothed = exponentialSmoothingFitted(values, alpha);
-  const clean = smoothed.filter(Number.isFinite);
-  const last = clean[clean.length - 1];
-
-  return Array.from({ length: horizon }, () => last);
-}
-
-/* =========================================================
-   5. Fitted 모델
-========================================================= */
-
-function movingAverageFitted(values, windowSize = 3) {
-  return values.map((_, index) => {
-    if (index === 0) return NaN;
-
-    const start = Math.max(0, index - windowSize);
-    const history = values.slice(start, index).filter(Number.isFinite);
-
-    return history.length > 0 ? meanLocal(history) : NaN;
-  });
-}
-
-function exponentialSmoothingFitted(values, alpha = 0.3) {
-  const clean = values.map(toNumber);
-  const fitted = [];
-
-  let level = clean.find(Number.isFinite);
-
-  clean.forEach((value, index) => {
-    if (index === 0) {
-      fitted.push(NaN);
-      return;
-    }
-
-    fitted.push(level);
-
-    if (Number.isFinite(value)) {
-      level = alpha * value + (1 - alpha) * level;
-    }
+  const forecastRows = createForecastRowsFromResult(apiResult, {
+    datetimeColumn,
+    targetColumn
   });
 
-  return fitted;
+  return {
+    type: "Forecast",
+    status: apiResult.status || "done",
+
+    model: apiResult.model || options.model || "auto-arima",
+    horizon: apiResult.horizon || options.horizon || forecast.length,
+    horizonType: apiResult.horizon_type || options.horizonType || "relative",
+    frequency: apiResult.frequency || options.frequency || null,
+
+    datetimeColumn,
+    targetColumn,
+
+    observed,
+    fitted,
+    forecast,
+    predicted: forecast,
+    forecastDates,
+    observedDates,
+    forecastRows,
+
+    lower,
+    upper,
+
+    rows: apiResult.rows || [],
+    metrics: apiResult.metrics || {},
+
+    before: {
+      rowCount: originalRows.length,
+      summary: apiResult.summary || summarizeValues(observed)
+    },
+
+    after: {
+      forecastCount: forecast.length,
+      lastObserved: getLastFiniteValue(observed),
+      firstForecast: getFirstFiniteValue(forecast),
+      lastForecast: getLastFiniteValue(forecast)
+    },
+
+    outputRows: originalRows,
+
+    messages: normalizeMessages(apiResult.messages),
+    recommendation: normalizeRecommendations(apiResult.recommendation),
+
+    apiResult
+  };
 }
 
-/* =========================================================
-   6. Holt 예측
-========================================================= */
-
-function holtForecast(values, horizon = 1, options = {}) {
-  const clean = values.filter(Number.isFinite);
-  const alpha = Number(options.alpha || 0.3);
-  const beta = Number(options.beta || 0.1);
-
-  let level = clean[0];
-  let trend = clean.length > 1 ? clean[1] - clean[0] : 0;
-
-  for (let i = 1; i < clean.length; i += 1) {
-    const value = clean[i];
-    const previousLevel = level;
-
-    level = alpha * value + (1 - alpha) * (level + trend);
-    trend = beta * (level - previousLevel) + (1 - beta) * trend;
+function normalizeMessages(messages) {
+  if (!Array.isArray(messages)) {
+    return [];
   }
 
-  return Array.from({ length: horizon }, (_, index) => {
-    const step = index + 1;
-    return level + step * trend;
-  });
+  return messages.map(item => {
+    if (typeof item === "string") return item;
+    return item.message || "";
+  }).filter(Boolean);
 }
 
-function holtFitted(values, options = {}) {
-  const clean = values.map(toNumber);
-  const alpha = Number(options.alpha || 0.3);
-  const beta = Number(options.beta || 0.1);
-
-  const first = clean.find(Number.isFinite);
-  if (!Number.isFinite(first)) return clean.map(() => NaN);
-
-  let level = first;
-  let trend = 0;
-  let initialized = false;
-
-  const fitted = [];
-
-  clean.forEach((value, index) => {
-    if (index === 0) {
-      fitted.push(NaN);
-      return;
-    }
-
-    fitted.push(level + trend);
-
-    if (!Number.isFinite(value)) return;
-
-    if (!initialized) {
-      trend = value - level;
-      initialized = true;
-    }
-
-    const previousLevel = level;
-
-    level = alpha * value + (1 - alpha) * (level + trend);
-    trend = beta * (level - previousLevel) + (1 - beta) * trend;
-  });
-
-  return fitted;
-}
-
-/* =========================================================
-   7. Holt-Winters 예측
-========================================================= */
-
-function holtWintersForecast(values, horizon = 1, options = {}) {
-  const clean = values.filter(Number.isFinite);
-  const alpha = Number(options.alpha || 0.3);
-  const beta = Number(options.beta || 0.1);
-  const gamma = Number(options.gamma || 0.1);
-  const seasonLength = Math.max(2, Number(options.seasonalPeriod || 12));
-
-  if (clean.length < seasonLength * 2) {
-    return holtForecast(clean, horizon, { alpha, beta });
+function normalizeRecommendations(recommendation) {
+  if (!Array.isArray(recommendation)) {
+    return [];
   }
 
-  let level = meanLocal(clean.slice(0, seasonLength));
-  let trend =
-    (meanLocal(clean.slice(seasonLength, seasonLength * 2)) -
-      meanLocal(clean.slice(0, seasonLength))) /
-    seasonLength;
-
-  const seasonal = initializeSeasonalFactors(clean, seasonLength);
-
-  clean.forEach((value, index) => {
-    const seasonIndex = index % seasonLength;
-    const seasonalValue = seasonal[seasonIndex] || 0;
-    const previousLevel = level;
-
-    level = alpha * (value - seasonalValue) + (1 - alpha) * (level + trend);
-    trend = beta * (level - previousLevel) + (1 - beta) * trend;
-    seasonal[seasonIndex] =
-      gamma * (value - level) + (1 - gamma) * seasonalValue;
-  });
-
-  return Array.from({ length: horizon }, (_, index) => {
-    const step = index + 1;
-    const seasonIndex = (clean.length + index) % seasonLength;
-
-    return level + step * trend + seasonal[seasonIndex];
-  });
-}
-
-function holtWintersFitted(values, options = {}) {
-  const clean = values.map(toNumber);
-  const alpha = Number(options.alpha || 0.3);
-  const beta = Number(options.beta || 0.1);
-  const gamma = Number(options.gamma || 0.1);
-  const seasonLength = Math.max(2, Number(options.seasonalPeriod || 12));
-
-  const valid = clean.filter(Number.isFinite);
-
-  if (valid.length < seasonLength * 2) {
-    return holtFitted(clean, { alpha, beta });
-  }
-
-  let level = meanLocal(valid.slice(0, seasonLength));
-  let trend =
-    (meanLocal(valid.slice(seasonLength, seasonLength * 2)) -
-      meanLocal(valid.slice(0, seasonLength))) /
-    seasonLength;
-
-  const seasonal = initializeSeasonalFactors(valid, seasonLength);
-  const fitted = [];
-
-  clean.forEach((value, index) => {
-    const seasonIndex = index % seasonLength;
-    const seasonalValue = seasonal[seasonIndex] || 0;
-
-    fitted.push(index === 0 ? NaN : level + trend + seasonalValue);
-
-    if (!Number.isFinite(value)) return;
-
-    const previousLevel = level;
-
-    level = alpha * (value - seasonalValue) + (1 - alpha) * (level + trend);
-    trend = beta * (level - previousLevel) + (1 - beta) * trend;
-    seasonal[seasonIndex] =
-      gamma * (value - level) + (1 - gamma) * seasonalValue;
-  });
-
-  return fitted;
-}
-
-function initializeSeasonalFactors(values, seasonLength) {
-  const seasonal = Array.from({ length: seasonLength }, () => 0);
-  const seasons = Math.floor(values.length / seasonLength);
-
-  const seasonMeans = [];
-
-  for (let season = 0; season < seasons; season += 1) {
-    const start = season * seasonLength;
-    seasonMeans.push(meanLocal(values.slice(start, start + seasonLength)));
-  }
-
-  for (let i = 0; i < seasonLength; i += 1) {
-    const deviations = [];
-
-    for (let season = 0; season < seasons; season += 1) {
-      const index = season * seasonLength + i;
-
-      if (Number.isFinite(values[index]) && Number.isFinite(seasonMeans[season])) {
-        deviations.push(values[index] - seasonMeans[season]);
-      }
-    }
-
-    seasonal[i] = deviations.length > 0 ? meanLocal(deviations) : 0;
-  }
-
-  return seasonal;
-}
-
-/* =========================================================
-   8. 간이 ARIMA
-========================================================= */
-
-function simpleARIMAForecast(values, horizon = 1, arimaOrder = { p: 1, d: 1, q: 1 }) {
-  const clean = values.filter(Number.isFinite);
-  const d = Number(arimaOrder.d || 1);
-
-  let diffed = [...clean];
-
-  for (let i = 0; i < d; i += 1) {
-    diffed = difference(diffed);
-  }
-
-  const diffForecast = autoregressiveForecast(diffed, horizon, Number(arimaOrder.p || 1));
-
-  return invertDifferenceForecast(clean, diffForecast, d);
-}
-
-function simpleARIMAFitted(values, arimaOrder = { p: 1, d: 1, q: 1 }) {
-  const clean = values.map(toNumber);
-  const fitted = clean.map(() => NaN);
-
-  for (let i = 1; i < clean.length; i += 1) {
-    if (Number.isFinite(clean[i - 1])) {
-      fitted[i] = clean[i - 1];
-    }
-  }
-
-  return fitted;
-}
-
-function autoregressiveForecast(values, horizon = 1, p = 1) {
-  const history = values.filter(Number.isFinite);
-  const forecast = [];
-
-  if (history.length === 0) {
-    return Array.from({ length: horizon }, () => 0);
-  }
-
-  for (let i = 0; i < horizon; i += 1) {
-    const recent = history.slice(-Math.max(1, p));
-    const next = meanLocal(recent);
-
-    forecast.push(next);
-    history.push(next);
-  }
-
-  return forecast;
-}
-
-function difference(values) {
-  const result = [];
-
-  for (let i = 1; i < values.length; i += 1) {
-    result.push(values[i] - values[i - 1]);
-  }
-
-  return result;
-}
-
-function invertDifferenceForecast(originalValues, diffForecast, d = 1) {
-  if (d <= 0) return diffForecast;
-
-  let lastValue = originalValues[originalValues.length - 1];
-
-  const result = diffForecast.map(diffValue => {
-    lastValue += diffValue;
-    return lastValue;
-  });
-
-  return result;
-}
-
-/* =========================================================
-   9. Forecast Rows / Dates
-========================================================= */
-
-function createForecastDates(rows, datetimeColumn, horizon) {
-  if (!window.TSDateUtils || !datetimeColumn || rows.length === 0) {
-    return Array.from({ length: horizon }, (_, index) => index + 1);
-  }
-
-  const lastDate = getLastValidDate(rows, datetimeColumn);
-  const frequencyCode =
-    window.TSState?.dataset?.frequency?.code ||
-    "D";
-
-  if (!lastDate) {
-    return Array.from({ length: horizon }, (_, index) => index + 1);
-  }
-
-  const startDate = window.TSDateUtils.addFrequency(lastDate, frequencyCode, 1);
-
-  return window.TSDateUtils.createDateRangeByPeriods(
-    startDate,
-    horizon,
-    frequencyCode
-  );
-}
-
-function createForecastRows({
-  baseRows,
-  forecastValues,
-  forecastDates,
-  datetimeColumn,
-  targetColumn
-}) {
-  return forecastValues.map((value, index) => ({
-    [datetimeColumn]: forecastDates[index] instanceof Date && window.TSDateUtils
-      ? window.TSDateUtils.formatDate(forecastDates[index], window.TSState?.dataset?.frequency?.code || "D")
-      : forecastDates[index],
-    [targetColumn]: value,
-    __forecast: true,
-    __forecastIndex: index
+  return recommendation.map(item => ({
+    nextStep: item.next_step || item.nextStep || "Forecast",
+    priority: item.priority || "normal",
+    message: item.message || ""
   }));
 }
 
-function getLastValidDate(rows, datetimeColumn) {
-  if (!datetimeColumn) return null;
-
-  for (let i = rows.length - 1; i >= 0; i -= 1) {
-    const date = window.TSDateUtils
-      ? window.TSDateUtils.parseDateValue(rows[i][datetimeColumn])
-      : new Date(rows[i][datetimeColumn]);
-
-    if (date && !Number.isNaN(date.getTime())) {
-      return date;
-    }
-  }
-
-  return null;
-}
-
 /* =========================================================
-   10. Prediction Interval
+   4. Forecast Row 변환
 ========================================================= */
 
-function createPredictionInterval(values, forecast) {
-  const fitted = exponentialSmoothingFitted(values, 0.3);
-  const residuals = [];
+function createForecastRowsFromResult(result, options = {}) {
+  const datetimeColumn = options.datetimeColumn || result.datetimeColumn || "datetime";
+  const targetColumn = options.targetColumn || result.targetColumn || "value";
 
-  for (let i = 0; i < values.length; i += 1) {
-    if (Number.isFinite(values[i]) && Number.isFinite(fitted[i])) {
-      residuals.push(values[i] - fitted[i]);
-    }
+  const rows = [];
+
+  const forecastDates =
+    result.forecast_dates ||
+    result.forecastDates ||
+    [];
+
+  const forecastValues =
+    result.forecast ||
+    result.predicted ||
+    [];
+
+  const lowerValues = result.lower || [];
+  const upperValues = result.upper || [];
+
+  for (let index = 0; index < forecastValues.length; index += 1) {
+    rows.push({
+      [datetimeColumn]: forecastDates[index] ?? index + 1,
+      [targetColumn]: forecastValues[index],
+      forecast: forecastValues[index],
+      lower: lowerValues[index],
+      upper: upperValues[index],
+      __forecast: true,
+      __forecastIndex: index,
+      __sourceTrackId: options.sourceTrackId || null
+    });
   }
 
-  const residualStd = standardDeviationLocal(residuals);
-  const safeStd = Number.isFinite(residualStd) ? residualStd : 0;
-
-  const lower = forecast.map((value, index) => {
-    const scale = Math.sqrt(index + 1);
-    return value - 1.96 * safeStd * scale;
-  });
-
-  const upper = forecast.map((value, index) => {
-    const scale = Math.sqrt(index + 1);
-    return value + 1.96 * safeStd * scale;
-  });
-
-  return { lower, upper };
+  return rows;
 }
 
 /* =========================================================
-   11. 메시지 / 추천
+   5. 기존 코드 호환용 함수
 ========================================================= */
 
-function createForecastMessages({ model, horizon, seasonalPeriod }) {
-  return [
-    `Forecast 모델은 ${model}입니다.`,
-    `예측 시평은 ${horizon}입니다.`,
-    `계절 주기는 ${seasonalPeriod}로 설정되었습니다.`
-  ];
+async function forecastValues(values, options = {}) {
+  const rows = values.map((value, index) => ({
+    index,
+    value
+  }));
+
+  const result = await runForecastAnalysis(rows, {
+    ...options,
+    datetimeColumn: "index",
+    targetColumn: "value"
+  });
+
+  if (result.status === "error") {
+    return [];
+  }
+
+  return result.forecast || [];
 }
 
-function createForecastRecommendation({ model, horizon, forecast, cleanValues }) {
-  const recommendation = [];
+function createFittedValues(values, options = {}) {
+  /*
+    기존 JS 수식 기반 fitted 계산은 제거.
+    Backend API 응답의 fitted 값을 사용하는 구조로 변경.
+    동기 함수 호환을 위해 단순 NaN 배열을 반환.
+  */
 
-  if (forecast.length > 0) {
-    recommendation.push({
-      nextStep: "Metrics",
-      priority: "normal",
-      message: "예측 결과가 생성되었습니다. Validation 구간이 있다면 Metrics로 예측 성능을 확인하세요."
-    });
-  }
-
-  if (model === "holt-winters") {
-    recommendation.push({
-      nextStep: "Residual",
-      priority: "normal",
-      message: "Holt-Winters는 추세와 계절성을 반영하므로 잔차가 무작위적인지 확인하는 것이 좋습니다."
-    });
-  }
-
-  if (model === "arima") {
-    recommendation.push({
-      nextStep: "Residual",
-      priority: "high",
-      message: "ARIMA 예측 후에는 잔차 자기상관을 확인해야 합니다."
-    });
-  }
-
-  if (horizon > cleanValues.length * 0.5) {
-    recommendation.push({
-      nextStep: "Validation",
-      priority: "medium",
-      message: "예측 시평이 데이터 길이에 비해 깁니다. 검증 구간을 설정해 안정성을 확인하세요."
-    });
-  }
-
-  return recommendation;
+  return values.map(() => NaN);
 }
 
 /* =========================================================
-   12. Track / Stack 보조
+   6. Track / Stack 보조
 ========================================================= */
 
 function createForecastTrackName(sourceTrack, result) {
   const baseName = sourceTrack?.name || "Track";
-  return `${baseName} · Forecast ${result.model}`;
+  const model = result?.model || "Forecast";
+
+  return `${baseName} · Forecast ${model}`;
 }
 
 function markLatestForecastStack(trackId, result) {
-  const track = window.TSStore?.getTrack(trackId);
+  if (!window.TSStore) return;
+
+  const track = window.TSStore.getTrack(trackId);
+
   if (!track || !track.analysisStack) return;
 
   const stackItem = [...track.analysisStack]
@@ -902,25 +409,36 @@ function markLatestForecastStack(trackId, result) {
   if (!stackItem) return;
 
   if (result.status === "error") {
-    window.TSStore.markStackItemError(trackId, stackItem.id, result.message);
+    if (window.TSStore.markStackItemError) {
+      window.TSStore.markStackItemError(
+        trackId,
+        stackItem.id,
+        result.message || result.error_message || "Forecast 실패"
+      );
+    }
+
     return;
   }
 
-  window.TSStore.markStackItemDone(
-    trackId,
-    stackItem.id,
-    createForecastShortSummary(result)
-  );
+  if (window.TSStore.markStackItemDone) {
+    window.TSStore.markStackItemDone(
+      trackId,
+      stackItem.id,
+      createForecastShortSummary(result)
+    );
+  }
 }
 
 function createForecastShortSummary(result) {
-  if (!result || result.status !== "done") return "Forecast 실패";
+  if (!result || result.status !== "done") {
+    return "Forecast 실패";
+  }
 
-  return `${result.model} · horizon ${result.horizon} · first ${formatNumber(result.after.firstForecast)}`;
+  return `${result.model} · horizon ${result.horizon} · first ${formatNumber(result.after?.firstForecast)}`;
 }
 
 /* =========================================================
-   13. UI 표시용 HTML
+   7. UI 표시용 HTML
 ========================================================= */
 
 function createForecastResultHTML(result) {
@@ -932,24 +450,33 @@ function createForecastResultHTML(result) {
     return `
       <div class="result-box">
         <strong>Forecast Error</strong><br />
-        ${escapeHTML(result.message)}
+        ${escapeHTML(result.message || result.error_message)}
       </div>
     `;
   }
+
+  const messages = Array.isArray(result.messages)
+    ? result.messages.map(message => `<li>${escapeHTML(message)}</li>`).join("")
+    : "";
 
   return `
     <div class="result-box">
       <strong>Forecast Summary</strong><br />
       Model: ${escapeHTML(result.model)}<br />
       Horizon: ${result.horizon}<br />
-      First Forecast: ${formatNumber(result.after.firstForecast)}<br />
-      Last Forecast: ${formatNumber(result.after.lastForecast)}
+      First Forecast: ${formatNumber(result.after?.firstForecast)}<br />
+      Last Forecast: ${formatNumber(result.after?.lastForecast)}
+      ${
+        messages
+          ? `<ul class="result-message-list">${messages}</ul>`
+          : ""
+      }
     </div>
   `;
 }
 
 /* =========================================================
-   14. Error
+   8. Error
 ========================================================= */
 
 function createForecastErrorResult(message, extra = {}) {
@@ -957,13 +484,14 @@ function createForecastErrorResult(message, extra = {}) {
     type: "Forecast",
     status: "error",
     message,
+    error_message: message,
     messages: [message],
     outputRows: [],
     recommendation: [
       {
         nextStep: "Forecast",
         priority: "high",
-        message: "Forecast에 필요한 target column과 충분한 데이터 길이를 확인하세요."
+        message: "Forecast에 필요한 target column, datetime column, Backend 연결 상태를 확인하세요."
       }
     ],
     ...extra
@@ -971,22 +499,70 @@ function createForecastErrorResult(message, extra = {}) {
 }
 
 /* =========================================================
-   15. 보조 함수
+   9. 보조 함수
 ========================================================= */
 
-function summarizeValues(values) {
-  if (window.TSMathUtils) {
-    return window.TSMathUtils.describe(values);
+function normalizeOrder(order, fallback) {
+  if (!Array.isArray(order)) {
+    return fallback;
   }
 
-  const clean = values.map(toNumber).filter(Number.isFinite);
+  if (order.length !== fallback.length) {
+    return fallback;
+  }
+
+  return order.map(value => Number(value));
+}
+
+function getFirstFiniteValue(values) {
+  if (!Array.isArray(values)) return null;
+
+  for (const value of values) {
+    const number = Number(value);
+    if (Number.isFinite(number)) return number;
+  }
+
+  return null;
+}
+
+function getLastFiniteValue(values) {
+  if (!Array.isArray(values)) return null;
+
+  for (let index = values.length - 1; index >= 0; index -= 1) {
+    const number = Number(values[index]);
+    if (Number.isFinite(number)) return number;
+  }
+
+  return null;
+}
+
+function summarizeValues(values) {
+  const clean = (values || [])
+    .map(toNumber)
+    .filter(Number.isFinite);
+
+  if (clean.length === 0) {
+    return {
+      count: 0,
+      mean: null,
+      min: null,
+      max: null,
+      std: null
+    };
+  }
+
+  const mean = meanLocal(clean);
+
+  const variance = clean.length > 1
+    ? clean.reduce((acc, value) => acc + Math.pow(value - mean, 2), 0) / (clean.length - 1)
+    : 0;
 
   return {
     count: clean.length,
-    mean: meanLocal(clean),
-    min: clean.length ? Math.min(...clean) : NaN,
-    max: clean.length ? Math.max(...clean) : NaN,
-    std: standardDeviationLocal(clean)
+    mean,
+    min: Math.min(...clean),
+    max: Math.max(...clean),
+    std: Math.sqrt(variance)
   };
 }
 
@@ -998,22 +574,34 @@ function getTargetValues(rows, targetColumn) {
 function inferDatetimeColumn(rows) {
   const columns = inferColumns(rows);
 
-  if (window.TSDateUtils) {
+  if (window.TSDateUtils?.detectDatetimeColumn) {
     return window.TSDateUtils.detectDatetimeColumn(rows, columns);
   }
 
   return columns.find(column => {
     const lower = String(column).toLowerCase();
-    return lower.includes("date") || lower.includes("time");
-  }) || null;
+    return (
+      lower.includes("date") ||
+      lower.includes("time") ||
+      lower.includes("datetime")
+    );
+  }) || columns[0] || null;
 }
 
 function inferTargetColumn(rows, datetimeColumn) {
   const columns = inferColumns(rows);
 
   if (window.TSCSVUtils) {
-    const numericColumns = window.TSCSVUtils.detectNumericColumns(rows, columns);
-    return window.TSCSVUtils.detectTargetColumn(rows, columns, datetimeColumn, numericColumns);
+    const numericColumns = window.TSCSVUtils.detectNumericColumns?.(rows, columns) || [];
+
+    if (window.TSCSVUtils.detectTargetColumn) {
+      return window.TSCSVUtils.detectTargetColumn(
+        rows,
+        columns,
+        datetimeColumn,
+        numericColumns
+      );
+    }
   }
 
   return columns.find(column => column !== datetimeColumn) || null;
@@ -1021,41 +609,40 @@ function inferTargetColumn(rows, datetimeColumn) {
 
 function inferColumns(rows) {
   if (!Array.isArray(rows) || rows.length === 0) return [];
-  return Object.keys(rows[0]).filter(column => !column.startsWith("__"));
+
+  return Object.keys(rows[0]).filter(column => {
+    return !String(column).startsWith("__");
+  });
 }
 
 function toNumber(value) {
-  if (window.TSMathUtils) return window.TSMathUtils.toNumber(value);
+  if (window.TSMathUtils?.toNumber) {
+    return window.TSMathUtils.toNumber(value);
+  }
 
-  if (value === null || value === undefined || value === "") return NaN;
+  if (value === null || value === undefined || value === "") {
+    return NaN;
+  }
 
   const number = Number(String(value).replace(/,/g, ""));
+
   return Number.isFinite(number) ? number : NaN;
 }
 
 function meanLocal(values) {
   const clean = values.filter(Number.isFinite);
+
   if (clean.length === 0) return NaN;
 
   return clean.reduce((acc, value) => acc + value, 0) / clean.length;
 }
 
-function standardDeviationLocal(values) {
-  const clean = values.filter(Number.isFinite);
-  if (clean.length <= 1) return NaN;
-
-  const avg = meanLocal(clean);
-
-  const variance =
-    clean.reduce((acc, value) => acc + Math.pow(value - avg, 2), 0) /
-    (clean.length - 1);
-
-  return Math.sqrt(variance);
-}
-
 function formatNumber(value, digits = 3) {
-  if (!Number.isFinite(value)) return "-";
-  return Number(value).toFixed(digits);
+  const number = Number(value);
+
+  if (!Number.isFinite(number)) return "-";
+
+  return number.toFixed(digits);
 }
 
 function escapeHTML(value) {
@@ -1068,7 +655,7 @@ function escapeHTML(value) {
 }
 
 /* =========================================================
-   16. 외부 접근용 객체
+   10. 외부 접근용 객체
 ========================================================= */
 
 window.TSForecastAnalysis = {
@@ -1078,20 +665,11 @@ window.TSForecastAnalysis = {
   forecastValues,
   createFittedValues,
 
-  naiveForecast,
-  meanForecast,
-  movingAverageForecast,
-  exponentialSmoothingForecast,
-  holtForecast,
-  holtWintersForecast,
-  simpleARIMAForecast,
+  createForecastRowsFromResult,
+  normalizeForecastResult,
 
-  createForecastDates,
-  createForecastRows,
-  createPredictionInterval,
-
-  createForecastMessages,
-  createForecastRecommendation,
+  createForecastTrackName,
+  markLatestForecastStack,
   createForecastShortSummary,
   createForecastResultHTML
 };

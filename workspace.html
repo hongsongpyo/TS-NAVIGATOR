@@ -16,6 +16,9 @@
   <link rel="stylesheet" href="css/region.css" />
   <link rel="stylesheet" href="css/popup.css" />
   <link rel="stylesheet" href="css/assistant.css" />
+
+  <!-- Plotly -->
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 </head>
 
 <body>
@@ -335,10 +338,10 @@
 
             <!-- Chart Area -->
             <div class="region-chart-area">
-              <canvas
-                id="mainTimeSeriesCanvas"
-                class="region-canvas"
-              ></canvas>
+              <div
+                id="mainForecastChart"
+                class="forecast-chart-container"
+              ></div>
 
               <!-- Empty Overlay -->
               <div
@@ -411,7 +414,6 @@
         id="popupMenuGrid"
         class="popup-menu-grid"
       >
-        <!-- REQUIRED -->
         <button
           class="popup-analysis-btn"
           data-analysis-type="Structure"
@@ -440,7 +442,6 @@
           Resampling
         </button>
 
-        <!-- OPTIONAL -->
         <button
           class="popup-analysis-btn"
           data-analysis-type="Smoothing"
@@ -469,7 +470,6 @@
           Feature
         </button>
 
-        <!-- FORECAST -->
         <button
           class="popup-analysis-btn"
           data-analysis-type="Forecast"
@@ -505,7 +505,6 @@
           Compare
         </button>
 
-        <!-- AUTO -->
         <button
           class="popup-analysis-btn auto-analysis-btn"
           data-analysis-type="Auto Analysis"
@@ -560,6 +559,7 @@
   <script src="js/utils/sampleData.js"></script>
 
   <!-- Core -->
+  <script src="js/api.js"></script>
   <script src="js/layout.js"></script>
   <script src="js/ui/inspector.js"></script>
   <script src="js/ui/timeline.js"></script>
@@ -586,7 +586,7 @@
   <script src="js/analysis/stationarity.js"></script>
   <script src="js/analysis/feature.js"></script>
   <script src="js/analysis/validation.js"></script>
-  <script src="js/analysis/forecast.js"></script>
+  <script src="js/analysis/forecasting.js"></script>
   <script src="js/analysis/residual.js"></script>
   <script src="js/analysis/metrics.js"></script>
   <script src="js/analysis/compare.js"></script>
