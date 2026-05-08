@@ -660,6 +660,64 @@
   background:
     rgba(255,255,255,0.18);
 }
+/* =========================================================
+   COLLAPSED INSPECTOR OVERRIDE
+   - 미닫이 접힘 상태
+========================================================= */
+
+.track-inspector.collapsed {
+  width: 44px !important;
+  min-width: 44px !important;
+  max-width: 44px !important;
+
+  overflow: hidden !important;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,0.025),
+      rgba(255,255,255,0.01)
+    );
+
+  backdrop-filter: blur(12px);
+}
+
+.track-inspector.collapsed .inspector-title,
+.track-inspector.collapsed .inspector-section,
+.track-inspector.collapsed .project-status-list,
+.track-inspector.collapsed .selected-track-panel,
+.track-inspector.collapsed .analysis-stack-list,
+.track-inspector.collapsed .analysis-result-panel,
+.track-inspector.collapsed .empty-box,
+.track-inspector.collapsed .section-title {
+  display: none !important;
+}
+
+.track-inspector.collapsed .inspector-header {
+  width: 44px;
+  height: 100%;
+
+  padding: 0;
+
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+
+  border-bottom: none;
+}
+
+.track-inspector.collapsed .collapse-btn {
+  margin-top: 12px;
+
+  width: 28px;
+  height: 28px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 13px;
+}
 
 /* =========================================================
    RESPONSIVE

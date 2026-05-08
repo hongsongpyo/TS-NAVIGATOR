@@ -261,7 +261,7 @@ function applyLayoutRatio() {
   if (!mainLayout) return;
 
   if (TSLayoutState.inspectorCollapsed) {
-    mainLayout.style.gridTemplateColumns = "44px 10% 1fr";
+    mainLayout.style.gridTemplateColumns = "44px minmax(220px, 10%) 1fr";
 
     if (collapseRail) collapseRail.textContent = ">";
     if (inspectorPanel) inspectorPanel.classList.add("collapsed");
