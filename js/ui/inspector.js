@@ -51,16 +51,60 @@ function renderInspector() {
 
   const selectedTrack = window.TSStore?.getSelectedTrack();
 
-  inspectorRoot.innerHTML = `
-    <div class="panel-title">Inspector</div>
+  const selectedTrackEmpty = document.getElementById("selectedTrackEmpty");
+  const selectedTrackPanel = document.getElementById("selectedTrackPanel");
+  const analysisStackList = document.getElementById("analysisStackList");
+  const analysisResultPanel = document.getElementById("analysisResultPanel");
 
-    ${selectedTrack ? createSelectedTrackHTML(selectedTrack) : createEmptyTrackHTML()}
+  if (!selectedTrack) {
+    if (selectedTrackEmpty) selectedTrackEmpty.classList.remove("hidden");
+    if (selectedTrackPanel) selectedTrackPanel.classList.add("hidden");
 
-    <div class="section-title">Analysis Stack</div>
-    ${selectedTrack ? createAnalysisStackHTML(selectedTrack) : createDisabledStackHTML()}
+    if (analysisStackList) {
+      analysisStackList.innerHTML = `
+        <div class="empty-box">
+          아직 분석이 없습니다.
+        </div>
+      `;
+    }
 
-    ${selectedTrack ? createTrackActionHTML(selectedTrack) : ""}
-  `;
+    if (analysisResultPanel) {
+      analysisResultPanel.innerHTML = "결과가 여기에 표시됩니다.";
+    }
+
+    return;
+  }
+
+  if (selectedTrackEmpty) selectedTrackEmpty.classList.add("hidden");
+  if (selectedTrackPanel) selectedTrackPanel.classList.remove("hidden");
+
+  const trackNameInput = document.getElementById("trackNameInput");
+  const trackTypeText = document.getElementById("trackTypeText");
+  const trackRegionSelect = document.getElementById("trackRegionSelect");
+
+  if (trackNameInput) {
+    trackNameInput.value = selectedTrack.name || "";
+    trackNameInput.dataset.action = "rename-track";
+    trackNameInput.dataset.trackId = selectedTrack.id;
+  }
+
+  if (trackTypeText) {
+    trackTypeText.textContent = selectedTrack.type || "Original Data";
+  }
+
+  if (trackRegionSelect) {
+    trackRegionSelect.dataset.action = "change-region";
+    trackRegionSelect.dataset.trackId = selectedTrack.id;
+    trackRegionSelect.innerHTML = createRegionOptions(selectedTrack.regionId);
+  }
+
+  if (analysisStackList) {
+    analysisStackList.innerHTML = createAnalysisStackHTML(selectedTrack);
+  }
+
+  if (analysisResultPanel) {
+    analysisResultPanel.innerHTML = createLastResultHTML(selectedTrack);
+  }
 }
 
 /* =========================================================
