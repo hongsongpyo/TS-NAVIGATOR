@@ -14,7 +14,7 @@
 ========================================================= */
 
 const TSTimeSeriesChartConfig = {
-  showPoints: false,
+  showPoints: true,
   showLegend: true,
   showBadge: true,
   showXLabels: true,
