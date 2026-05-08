@@ -756,15 +756,14 @@ function getDefaultParams(analysisType) {
     },
 
     "Auto Analysis": {
-      runStructure: true,
-      runMissing: true,
-      runOutlier: true,
-      runStationarity: true,
-      runForecast: true,
-      runMetrics: true,
       modelSelection: "auto",
-      horizon: 12
-    }
+      forecastModel: "exponential-smoothing",
+      horizon: 12,
+      testSize: 0.2,
+      seasonalPeriod: 12,
+      runMissing: true,
+      runOutlier: true
+    },
   };
 
   return structuredCloneSafe(params[analysisType] || {});
