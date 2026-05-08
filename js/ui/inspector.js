@@ -56,6 +56,15 @@ function renderInspector() {
   const analysisStackList = document.getElementById("analysisStackList");
   const analysisResultPanel = document.getElementById("analysisResultPanel");
 
+  const trackNameInput = document.getElementById("trackNameInput");
+  const trackTypeText = document.getElementById("trackTypeText");
+  const trackRegionSelect = document.getElementById("trackRegionSelect");
+
+  const visibilityBtn = document.getElementById("toggleTrackVisibilityBtn");
+  const lockBtn = document.getElementById("lockTrackBtn");
+  const duplicateBtn = document.getElementById("duplicateTrackBtn");
+  const deleteBtn = document.getElementById("deleteTrackBtn");
+
   if (!selectedTrack) {
     if (selectedTrackEmpty) selectedTrackEmpty.classList.remove("hidden");
     if (selectedTrackPanel) selectedTrackPanel.classList.add("hidden");
@@ -78,10 +87,6 @@ function renderInspector() {
   if (selectedTrackEmpty) selectedTrackEmpty.classList.add("hidden");
   if (selectedTrackPanel) selectedTrackPanel.classList.remove("hidden");
 
-  const trackNameInput = document.getElementById("trackNameInput");
-  const trackTypeText = document.getElementById("trackTypeText");
-  const trackRegionSelect = document.getElementById("trackRegionSelect");
-
   if (trackNameInput) {
     trackNameInput.value = selectedTrack.name || "";
     trackNameInput.dataset.action = "rename-track";
@@ -96,6 +101,28 @@ function renderInspector() {
     trackRegionSelect.dataset.action = "change-region";
     trackRegionSelect.dataset.trackId = selectedTrack.id;
     trackRegionSelect.innerHTML = createRegionOptions(selectedTrack.regionId);
+  }
+
+  if (visibilityBtn) {
+    visibilityBtn.dataset.action = "toggle-visible";
+    visibilityBtn.dataset.trackId = selectedTrack.id;
+    visibilityBtn.textContent = selectedTrack.visible ? "Visible ON" : "Visible OFF";
+  }
+
+  if (lockBtn) {
+    lockBtn.dataset.action = "toggle-lock";
+    lockBtn.dataset.trackId = selectedTrack.id;
+    lockBtn.textContent = selectedTrack.locked ? "Locked" : "Unlocked";
+  }
+
+  if (duplicateBtn) {
+    duplicateBtn.dataset.action = "duplicate-track";
+    duplicateBtn.dataset.trackId = selectedTrack.id;
+  }
+
+  if (deleteBtn) {
+    deleteBtn.dataset.action = "delete-track";
+    deleteBtn.dataset.trackId = selectedTrack.id;
   }
 
   if (analysisStackList) {

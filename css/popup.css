@@ -236,6 +236,9 @@
 
   animation:
     popup-menu-in 0.16s ease;
+
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
 }
 
 .analysis-popup-head {

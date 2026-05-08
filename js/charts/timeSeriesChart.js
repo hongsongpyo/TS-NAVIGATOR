@@ -17,7 +17,7 @@ const TSTimeSeriesChartConfig = {
   showPoints: false,
   showLegend: true,
   showBadge: true,
-  showXLabels: false,
+  showXLabels: true,
   showMissingMarkers: true,
   showOutlierMarkers: true,
   editable: true
