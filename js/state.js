@@ -719,6 +719,7 @@ function getDefaultParams(analysisType) {
     Forecast: {
       model: "exponential-smoothing",
       horizon: 12,
+      testSize: 0.2,
       horizonType: "relative",
       trend: "additive",
       seasonal: "additive",

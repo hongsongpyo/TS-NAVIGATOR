@@ -153,6 +153,7 @@ function runForecastAnalysisOnTrack(trackId, params = {}) {
   }
 
   const rows = sourceTrack.data || [];
+
   const datetimeColumn =
     sourceTrack.metadata?.datetimeColumn ||
     window.TSState.dataset.datetimeColumn;
@@ -168,40 +169,78 @@ function runForecastAnalysisOnTrack(trackId, params = {}) {
     };
   }
 
-  const horizon = Number(params.horizon || 12);
+  const sortedRows = window.TSDateUtils
+    ? window.TSDateUtils.sortRowsByDate(rows, datetimeColumn)
+    : [...rows];
 
-  const values = rows
-    .map(row => Number(row[targetColumn]))
-    .filter(value => Number.isFinite(value));
+  const testSize = Number(params.testSize || 0.2);
+  const safeTestSize =
+    testSize > 0 && testSize < 1
+      ? testSize
+      : 0.2;
 
-  if (values.length < 3) {
+  const testCount = Math.max(
+    1,
+    Math.round(sortedRows.length * safeTestSize)
+  );
+
+  const trainCount = sortedRows.length - testCount;
+
+  if (trainCount < 3) {
     return {
       status: "error",
-      message: "예측을 수행하기 위한 데이터가 부족합니다."
+      message: "train 데이터가 너무 적어 예측을 수행할 수 없습니다."
     };
   }
 
-  const lastValue = values[values.length - 1];
-  const recentValues = values.slice(-Math.min(6, values.length));
-  const recentMean =
-    recentValues.reduce((sum, value) => sum + value, 0) / recentValues.length;
+  const trainRows = sortedRows.slice(0, trainCount);
+  const testRows = sortedRows.slice(trainCount);
 
-  const trend =
-    (values[values.length - 1] - values[Math.max(0, values.length - 6)]) /
-    Math.min(6, values.length - 1);
+  const horizon = Math.max(
+    1,
+    Number(params.horizon || testRows.length || 12)
+  );
 
-  const lastDate = new Date(rows[rows.length - 1][datetimeColumn]);
+  const trainValues = trainRows
+    .map(row => Number(row[targetColumn]))
+    .filter(value => Number.isFinite(value));
+
+  if (trainValues.length < 3) {
+    return {
+      status: "error",
+      message: "예측을 수행하기 위한 유효한 train 수치 데이터가 부족합니다."
+    };
+  }
+
+  const model = params.model || "exponential-smoothing";
+  const seasonalPeriod = Number(params.seasonalPeriod || 12);
+
+  const forecastValuesResult = forecastValues(trainValues, {
+    model,
+    horizon,
+    seasonalPeriod,
+    alpha: Number(params.alpha || 0.3),
+    beta: Number(params.beta || 0.1),
+    gamma: Number(params.gamma || 0.1),
+    windowSize: Number(params.windowSize || 3),
+    arimaOrder: params.arimaOrder || { p: 1, d: 1, q: 1 }
+  });
 
   const forecastRows = [];
 
-  for (let i = 1; i <= horizon; i += 1) {
-    const nextDate = new Date(lastDate);
-    nextDate.setMonth(nextDate.getMonth() + i);
+  for (let i = 0; i < horizon; i += 1) {
+    const testRow = testRows[i];
+
+    const forecastDate = testRow
+      ? testRow[datetimeColumn]
+      : createNextForecastDate(trainRows, testRows, datetimeColumn, i);
 
     forecastRows.push({
-      [datetimeColumn]: nextDate.toISOString().slice(0, 10),
-      [targetColumn]: recentMean + trend * i,
-      __forecast: true
+      [datetimeColumn]: forecastDate,
+      [targetColumn]: forecastValuesResult[i],
+      __forecast: true,
+      __forecastIndex: i,
+      __sourceTrackId: sourceTrack.id
     });
   }
 
@@ -214,7 +253,10 @@ function runForecastAnalysisOnTrack(trackId, params = {}) {
     metadata: {
       ...sourceTrack.metadata,
       forecastHorizon: horizon,
-      forecastModel: params.model || "auto"
+      forecastModel: model,
+      testSize: safeTestSize,
+      trainCount,
+      testCount
     }
   });
 
@@ -226,7 +268,8 @@ function runForecastAnalysisOnTrack(trackId, params = {}) {
       status: "done",
       params,
       messages: [
-        `${horizon}개 시점에 대한 예측 Track이 생성되었습니다.`
+        `${trainCount}개 train 데이터로 학습했습니다.`,
+        `${testRows.length}개 test 구간 중 ${horizon}개 시점에 대한 예측 Track이 생성되었습니다.`
       ]
     }
   });
@@ -235,15 +278,59 @@ function runForecastAnalysisOnTrack(trackId, params = {}) {
     status: "done",
     type: "Forecast",
     forecastTrackId: forecastTrack.id,
+    model,
+    horizon,
+    trainCount,
+    testCount,
     messages: [
+      `${trainCount}개 train 데이터로 학습했습니다.`,
       `${horizon}개 시점에 대한 예측 Track이 생성되었습니다.`
     ]
   };
 }
+function createNextForecastDate(trainRows, testRows, datetimeColumn, forecastIndex) {
+  const allKnownRows = [...trainRows, ...testRows];
 
-window.TSForecastAnalysis = {
-  runForecastAnalysisOnTrack
-};
+  const validDates = allKnownRows
+    .map(row => {
+      if (window.TSDateUtils) {
+        return window.TSDateUtils.parseDateValue(row[datetimeColumn]);
+      }
+
+      const date = new Date(row[datetimeColumn]);
+      return Number.isNaN(date.getTime()) ? null : date;
+    })
+    .filter(date => date && !Number.isNaN(date.getTime()));
+
+  if (validDates.length === 0) {
+    return forecastIndex + 1;
+  }
+
+  const frequencyCode =
+    window.TSState?.dataset?.frequency?.code ||
+    "D";
+
+  const baseDate = validDates[validDates.length - 1];
+
+  if (window.TSDateUtils?.addFrequency) {
+    const nextDate = window.TSDateUtils.addFrequency(
+      baseDate,
+      frequencyCode,
+      forecastIndex + 1
+    );
+
+    if (window.TSDateUtils.formatDate) {
+      return window.TSDateUtils.formatDate(nextDate, frequencyCode);
+    }
+
+    return nextDate.toISOString().slice(0, 10);
+  }
+
+  const nextDate = new Date(baseDate);
+  nextDate.setDate(nextDate.getDate() + forecastIndex + 1);
+
+  return nextDate.toISOString().slice(0, 10);
+}
 
 /* =========================================================
    3. Forecast Values

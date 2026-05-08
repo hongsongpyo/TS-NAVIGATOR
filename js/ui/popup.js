@@ -195,83 +195,83 @@ function createParameterFieldsHTML(analysisType, params) {
       ${createSelectRow("datetimeColumn", "Date", params.datetimeColumn, createColumnOptions("auto"))}
       ${createSelectRow("targetColumn", "Target", params.targetColumn, createColumnOptions("auto"))}
       ${createSelectRow("handleDuplicateTimestamp", "Duplicate", params.handleDuplicateTimestamp, [
-        ["mean", "mean"],
-        ["first", "first"],
-        ["last", "last"],
-        ["sum", "sum"]
-      ])}
+      ["mean", "mean"],
+      ["first", "first"],
+      ["last", "last"],
+      ["sum", "sum"]
+    ])}
     `;
   }
 
   if (analysisType === "Missing") {
     return `
       ${createSelectRow("method", "Method", params.method, [
-        ["linear", "Linear"],
-        ["locf", "LOCF"],
-        ["nocb", "NOCB"],
-        ["mean", "Mean"],
-        ["moving-average", "Moving Average"]
-      ])}
+      ["linear", "Linear"],
+      ["locf", "LOCF"],
+      ["nocb", "NOCB"],
+      ["mean", "Mean"],
+      ["moving-average", "Moving Average"]
+    ])}
       ${createNumberRow("windowSize", "Window", params.windowSize || 3)}
       ${createSelectRow("scope", "Scope", params.scope, [
-        ["entire-series", "Entire Series"],
-        ["selected-range", "Selected Range"]
-      ])}
+      ["entire-series", "Entire Series"],
+      ["selected-range", "Selected Range"]
+    ])}
     `;
   }
 
   if (analysisType === "Outlier") {
     return `
       ${createSelectRow("method", "Method", params.method, [
-        ["hampel", "Hampel"],
-        ["z-score", "Z-score"],
-        ["iqr", "IQR"]
-      ])}
+      ["hampel", "Hampel"],
+      ["z-score", "Z-score"],
+      ["iqr", "IQR"]
+    ])}
       ${createNumberRow("windowSize", "Window", params.windowSize || 7)}
       ${createNumberRow("threshold", "Threshold", params.threshold || 3)}
       ${createSelectRow("replaceWith", "Replace", params.replaceWith, [
-        ["linear-interpolation", "Linear"],
-        ["median", "Median"],
-        ["mean", "Mean"],
-        ["keep", "Keep"]
-      ])}
+      ["linear-interpolation", "Linear"],
+      ["median", "Median"],
+      ["mean", "Mean"],
+      ["keep", "Keep"]
+    ])}
     `;
   }
 
   if (analysisType === "Resampling") {
     return `
       ${createSelectRow("frequency", "Freq", params.frequency, [
-        ["auto", "Auto"],
-        ["D", "Daily"],
-        ["W", "Weekly"],
-        ["M", "Monthly"],
-        ["Q", "Quarterly"],
-        ["Y", "Yearly"]
-      ])}
+      ["auto", "Auto"],
+      ["D", "Daily"],
+      ["W", "Weekly"],
+      ["M", "Monthly"],
+      ["Q", "Quarterly"],
+      ["Y", "Yearly"]
+    ])}
       ${createSelectRow("method", "Method", params.method, [
-        ["asfreq", "As Frequency"],
-        ["mean", "Mean"],
-        ["sum", "Sum"],
-        ["last", "Last"]
-      ])}
+      ["asfreq", "As Frequency"],
+      ["mean", "Mean"],
+      ["sum", "Sum"],
+      ["last", "Last"]
+    ])}
       ${createSelectRow("fillMethod", "Fill", params.fillMethod, [
-        ["interpolate", "Interpolate"],
-        ["locf", "LOCF"],
-        ["nocb", "NOCB"],
-        ["none", "None"]
-      ])}
+      ["interpolate", "Interpolate"],
+      ["locf", "LOCF"],
+      ["nocb", "NOCB"],
+      ["none", "None"]
+    ])}
     `;
   }
 
   if (analysisType === "Smoothing") {
     return `
       ${createSelectRow("method", "Method", params.method, [
-        ["moving-average", "Moving Average"],
-        ["centered-moving-average", "Centered MA"],
-        ["exponential", "Exponential"],
-        ["holt", "Holt"],
-        ["holt-winters", "Holt-Winters"]
-      ])}
+      ["moving-average", "Moving Average"],
+      ["centered-moving-average", "Centered MA"],
+      ["exponential", "Exponential"],
+      ["holt", "Holt"],
+      ["holt-winters", "Holt-Winters"]
+    ])}
       ${createNumberRow("windowSize", "Window", params.windowSize || 3)}
       ${createNumberRow("alpha", "Alpha", params.alpha || 0.3, 0.01)}
       ${createNumberRow("seasonalPeriod", "Season", params.seasonalPeriod || 12)}
@@ -281,13 +281,13 @@ function createParameterFieldsHTML(analysisType, params) {
   if (analysisType === "Decomposition") {
     return `
       ${createSelectRow("method", "Method", params.method, [
-        ["STL", "STL"],
-        ["classical", "Classical"]
-      ])}
+      ["STL", "STL"],
+      ["classical", "Classical"]
+    ])}
       ${createSelectRow("model", "Model", params.model, [
-        ["additive", "Additive"],
-        ["multiplicative", "Multiplicative"]
-      ])}
+      ["additive", "Additive"],
+      ["multiplicative", "Multiplicative"]
+    ])}
       ${createNumberRow("seasonalPeriod", "Season", params.seasonalPeriod || 12)}
     `;
   }
@@ -295,16 +295,16 @@ function createParameterFieldsHTML(analysisType, params) {
   if (analysisType === "Stationarity") {
     return `
       ${createSelectRow("test", "Test", params.test, [
-        ["ADF", "ADF"],
-        ["rolling-stat", "Rolling Stat"]
-      ])}
+      ["ADF", "ADF"],
+      ["rolling-stat", "Rolling Stat"]
+    ])}
       ${createNumberRow("alpha", "Alpha", params.alpha || 0.05, 0.01)}
       ${createSelectRow("transform", "Transform", params.transform, [
-        ["none", "None"],
-        ["log", "Log"],
-        ["difference", "Difference"],
-        ["log-difference", "Log + Difference"]
-      ])}
+      ["none", "None"],
+      ["log", "Log"],
+      ["difference", "Difference"],
+      ["log-difference", "Log + Difference"]
+    ])}
       ${createNumberRow("differencingOrder", "Diff", params.differencingOrder || 1)}
     `;
   }
@@ -314,32 +314,33 @@ function createParameterFieldsHTML(analysisType, params) {
       ${createNumberRow("lagCount", "Lag", params.lagCount || 3)}
       ${createNumberRow("rollingWindow", "Rolling", params.rollingWindow || 3)}
       ${createSelectRow("includeTimeFeatures", "Time", String(params.includeTimeFeatures), [
-        ["true", "Include"],
-        ["false", "Exclude"]
-      ])}
+      ["true", "Include"],
+      ["false", "Exclude"]
+    ])}
       ${createSelectRow("includeSeasonalFeatures", "Seasonal", String(params.includeSeasonalFeatures), [
-        ["true", "Include"],
-        ["false", "Exclude"]
-      ])}
+      ["true", "Include"],
+      ["false", "Exclude"]
+    ])}
     `;
   }
 
   if (analysisType === "Forecast") {
     return `
       ${createSelectRow("model", "Model", params.model, [
-        ["naive", "Naive"],
-        ["mean", "Mean"],
-        ["moving-average", "Moving Average"],
-        ["exponential-smoothing", "Exp. Smoothing"],
-        ["holt", "Holt"],
-        ["holt-winters", "Holt-Winters"],
-        ["arima", "ARIMA"]
-      ])}
+      ["naive", "Naive"],
+      ["mean", "Mean"],
+      ["moving-average", "Moving Average"],
+      ["exponential-smoothing", "Exp. Smoothing"],
+      ["holt", "Holt"],
+      ["holt-winters", "Holt-Winters"],
+      ["arima", "ARIMA"]
+    ])}
       ${createNumberRow("horizon", "Horizon", params.horizon || 12)}
+      ${createNumberRow("testSize", "Test Size", params.testSize || 0.2, 0.05)}
       ${createSelectRow("horizonType", "Type", params.horizonType, [
-        ["relative", "Relative"],
-        ["absolute", "Absolute"]
-      ])}
+      ["relative", "Relative"],
+      ["absolute", "Absolute"]
+    ])}
       ${createNumberRow("seasonalPeriod", "Season", params.seasonalPeriod || 12)}
     `;
   }
@@ -347,10 +348,10 @@ function createParameterFieldsHTML(analysisType, params) {
   if (analysisType === "Validation") {
     return `
       ${createSelectRow("method", "Method", params.method, [
-        ["train-test-split", "Train/Test"],
-        ["rolling", "Rolling"],
-        ["expanding", "Expanding"]
-      ])}
+      ["train-test-split", "Train/Test"],
+      ["rolling", "Rolling"],
+      ["expanding", "Expanding"]
+    ])}
       ${createNumberRow("testSize", "Test", params.testSize || 0.2, 0.05)}
       ${createNumberRow("rollingWindow", "Window", params.rollingWindow || 12)}
     `;
@@ -359,9 +360,9 @@ function createParameterFieldsHTML(analysisType, params) {
   if (analysisType === "Residual") {
     return `
       ${createSelectRow("whiteNoiseTest", "Test", params.whiteNoiseTest, [
-        ["ljung-box", "Ljung-Box"],
-        ["none", "None"]
-      ])}
+      ["ljung-box", "Ljung-Box"],
+      ["none", "None"]
+    ])}
       ${createNumberRow("lag", "Lag", params.lag || 12)}
     `;
   }
@@ -369,46 +370,82 @@ function createParameterFieldsHTML(analysisType, params) {
   if (analysisType === "Metrics") {
     return `
       ${createSelectRow("metricSet", "Metrics", params.metricSet || "basic", [
-        ["basic", "MAE/RMSE/MAPE"],
-        ["full", "Full Metrics"],
-        ["scale-free", "Scale Free"]
-      ])}
+      ["basic", "MAE/RMSE/MAPE"],
+      ["full", "Full Metrics"],
+      ["scale-free", "Scale Free"]
+    ])}
       ${createSelectRow("zeroHandling", "Zero", params.zeroHandling, [
-        ["safe", "Safe"],
-        ["ignore", "Ignore"],
-        ["epsilon", "Epsilon"]
-      ])}
+      ["safe", "Safe"],
+      ["ignore", "Ignore"],
+      ["epsilon", "Epsilon"]
+    ])}
     `;
   }
 
   if (analysisType === "Compare") {
     return `
       ${createSelectRow("compareBy", "By", params.compareBy, [
-        ["metrics", "Metrics"],
-        ["forecast", "Forecast"],
-        ["residual", "Residual"]
-      ])}
+      ["metrics", "Metrics"],
+      ["forecast", "Forecast"],
+      ["residual", "Residual"]
+    ])}
       ${createSelectRow("baselineTrackId", "Base", params.baselineTrackId, createTrackOptions("none"))}
     `;
   }
 
   if (analysisType === "Auto Analysis") {
     return `
-      ${createSelectRow("modelSelection", "Model", params.modelSelection, [
-        ["auto", "Auto"],
-        ["fast", "Fast"],
-        ["accurate", "Accurate"]
-      ])}
-      ${createNumberRow("horizon", "Horizon", params.horizon || 12)}
-      ${createSelectRow("runMissing", "Missing", String(params.runMissing), [
+    ${createSelectRow("modelSelection", "Model", params.modelSelection, [
+      ["auto", "Auto"],
+      ["fast", "Fast"],
+      ["accurate", "Accurate"]
+    ])}
+
+    ${createSelectRow("forecastModel", "Forecast", params.forecastModel, [
+      ["naive", "Naive"],
+      ["mean", "Mean"],
+      ["moving-average", "Moving Average"],
+      ["exponential-smoothing", "Exp. Smoothing"],
+      ["holt", "Holt"],
+      ["holt-winters", "Holt-Winters"],
+      ["arima", "ARIMA"]
+    ])}
+
+    ${createNumberRow("horizon", "Horizon", params.horizon || 12)}
+
+    ${createNumberRow(
+      "testSize",
+      "Test Size",
+      params.testSize || 0.2,
+      0.05
+    )}
+
+    ${createNumberRow(
+      "seasonalPeriod",
+      "Season",
+      params.seasonalPeriod || 12
+    )}
+
+    ${createSelectRow(
+      "runMissing",
+      "Missing",
+      String(params.runMissing),
+      [
         ["true", "Run"],
         ["false", "Skip"]
-      ])}
-      ${createSelectRow("runOutlier", "Outlier", String(params.runOutlier), [
+      ]
+    )}
+
+    ${createSelectRow(
+      "runOutlier",
+      "Outlier",
+      String(params.runOutlier),
+      [
         ["true", "Run"],
         ["false", "Skip"]
-      ])}
-    `;
+      ]
+    )}
+  `;
   }
 
   return `<div class="result-box">설정할 파라미터가 없습니다.</div>`;
@@ -437,12 +474,12 @@ function createRegionSettingPopupHTML(popupState) {
         </div>
 
         ${createSelectRow("regionType", "Type", region?.type || "time-series", [
-          ["time-series", "Time Series"],
-          ["forecast", "Forecast"],
-          ["metrics", "Metrics"],
-          ["residual", "Residual"],
-          ["compare", "Compare"]
-        ])}
+    ["time-series", "Time Series"],
+    ["forecast", "Forecast"],
+    ["metrics", "Metrics"],
+    ["residual", "Residual"],
+    ["compare", "Compare"]
+  ])}
 
         <button class="apply-btn" data-popup-action="apply-region-setting">
           Apply Region Setting
@@ -462,16 +499,16 @@ function createSelectRow(name, label, value, options) {
       <label>${escapeHTML(label)}</label>
       <select data-param="${escapeHTML(name)}">
         ${options.map(option => {
-          const optionValue = Array.isArray(option) ? option[0] : option;
-          const optionLabel = Array.isArray(option) ? option[1] : option;
-          const selected = String(optionValue) === String(value) ? "selected" : "";
+    const optionValue = Array.isArray(option) ? option[0] : option;
+    const optionLabel = Array.isArray(option) ? option[1] : option;
+    const selected = String(optionValue) === String(value) ? "selected" : "";
 
-          return `
+    return `
             <option value="${escapeHTML(optionValue)}" ${selected}>
               ${escapeHTML(optionLabel)}
             </option>
           `;
-        }).join("")}
+  }).join("")}
       </select>
     </div>
   `;
