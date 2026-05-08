@@ -20,7 +20,7 @@ let timelineRoot = null;
 ========================================================= */
 
 function initTimeline() {
-  timelineRoot = document.querySelector(".timeline .panel-inner");
+  timelineRoot = document.querySelector(".timeline-panel");
 
   if (!timelineRoot) {
     console.warn("Timeline 영역을 찾지 못했습니다.");
@@ -43,7 +43,7 @@ function bindTimelineEvents() {
 ========================================================= */
 
 function renderTimeline() {
-  timelineRoot = document.querySelector(".timeline .panel-inner");
+  timelineRoot = document.querySelector(".timeline-panel");
 
   if (!timelineRoot || !window.TSState) return;
 

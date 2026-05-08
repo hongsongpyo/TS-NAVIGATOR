@@ -22,9 +22,9 @@ let regionsRoot = null;
 ========================================================= */
 
 function initRegions() {
-  visualRoot = document.querySelector(".visualization");
-  visualHeader = document.querySelector(".visual-header");
-  regionsRoot = document.querySelector(".regions");
+  visualRoot = document.querySelector(".visualization-panel");
+  visualHeader = document.querySelector(".visualization-header");
+  regionsRoot = document.getElementById("visualizationRegionGrid");
 
   if (!regionsRoot) {
     console.warn("Visualization Region 영역을 찾지 못했습니다.");
@@ -47,9 +47,9 @@ function bindRegionEvents() {
 ========================================================= */
 
 function renderRegions() {
-  visualRoot = document.querySelector(".visualization");
-  visualHeader = document.querySelector(".visual-header");
-  regionsRoot = document.querySelector(".regions");
+  visualRoot = document.querySelector(".visualization-panel");
+  visualHeader = document.querySelector(".visualization-header");
+  regionsRoot = document.getElementById("visualizationRegionGrid");
 
   if (!regionsRoot || !window.TSState) return;
 

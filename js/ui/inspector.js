@@ -21,7 +21,7 @@ let inspectorRoot = null;
 ========================================================= */
 
 function initInspector() {
-  inspectorRoot = document.querySelector(".inspector .panel-inner");
+  inspectorRoot = document.getElementById("trackInspector");
 
   if (!inspectorRoot) {
     console.warn("Inspector 영역을 찾지 못했습니다.");
@@ -45,7 +45,7 @@ function bindInspectorEvents() {
 ========================================================= */
 
 function renderInspector() {
-  inspectorRoot = document.querySelector(".inspector .panel-inner");
+  inspectorRoot = document.getElementById("trackInspector");
 
   if (!inspectorRoot || !window.TSState) return;
 
