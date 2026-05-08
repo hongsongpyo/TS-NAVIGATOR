@@ -506,19 +506,19 @@ function calculateChartBounds(seriesList, includeZero = false) {
   };
 }
 
-function scaleX(x, bounds) {
+function regionScaleX(x, bounds) {
   const usableWidth = bounds.width - bounds.left - bounds.right;
   return bounds.left + ((x - bounds.xMin) / (bounds.xMax - bounds.xMin)) * usableWidth;
 }
 
-function scaleY(y, bounds) {
+function regionScaleY(y, bounds) {
   const usableHeight = bounds.height - bounds.top - bounds.bottom;
   return bounds.top + (1 - ((y - bounds.yMin) / (bounds.yMax - bounds.yMin))) * usableHeight;
 }
 
 function createPolylineSVG(series, bounds, dashed = false) {
   const pointsText = series.points
-    .map(point => `${scaleX(point.x, bounds)},${scaleY(point.y, bounds)}`)
+    .map(point => `${regionScaleX(point.x, bounds)},${regionScaleY(point.y, bounds)}`)
     .join(" ");
 
   const dash = dashed ? `stroke-dasharray="7 6"` : "";
@@ -568,7 +568,7 @@ function createAxisLabelsSVG(bounds) {
 function createZeroLineSVG(bounds) {
   if (bounds.yMin > 0 || bounds.yMax < 0) return "";
 
-  const y = scaleY(0, bounds);
+  const y = regionScaleY(0, bounds);
 
   return `
     <line
@@ -584,7 +584,7 @@ function createZeroLineSVG(bounds) {
 function createForecastBandSVG(series, bounds) {
   if (!series || !series.points || series.points.length === 0) return "";
 
-  const startX = scaleX(series.points[0].x, bounds);
+  const startX = regionScaleX(series.points[0].x, bounds);
   const width = bounds.width - bounds.right - startX;
 
   return `
