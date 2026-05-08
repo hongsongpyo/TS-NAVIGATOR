@@ -576,7 +576,7 @@ function handlePopupKeydown(event) {
   }
 }
 
-function handlePopupAction(event, target) {
+async function handlePopupAction(event, target) {
   event.preventDefault();
   event.stopPropagation();
 
@@ -593,7 +593,7 @@ function handlePopupAction(event, target) {
   }
 
   if (action === "apply-analysis") {
-    applyAnalysis(target.dataset.analysisType);
+    await applyAnalysis(target.dataset.analysisType);
     return;
   }
 
@@ -672,7 +672,7 @@ function saveCurrentParams() {
    13. 분석 실행
 ========================================================= */
 
-function applyAnalysis(analysisType) {
+async function applyAnalysis(analysisType) {
   const popupState = window.TSState.popup;
   const trackId = popupState.targetTrackId;
   const stackId = popupState.targetStackId;
@@ -686,14 +686,43 @@ function applyAnalysis(analysisType) {
 
   let result = null;
 
-  if (analysisType === "Structure" && window.TSStructureAnalysis) {
-    result = window.TSStructureAnalysis.runStructureAnalysisOnTrack(trackId, params);
-  } else if (analysisType === "Forecast" && window.TSForecastAnalysis) {
-    result = window.TSForecastAnalysis.runForecastAnalysisOnTrack(trackId, params);
-  } else if (analysisType === "Auto Analysis" && window.TSForecastAnalysis) {
-    result = window.TSForecastAnalysis.runForecastAnalysisOnTrack(trackId, params);
+  if (
+    analysisType === "Structure" &&
+    window.TSStructureAnalysis
+  ) {
+    result =
+      await window.TSStructureAnalysis
+        .runStructureAnalysisOnTrack(trackId, params);
+
+  } else if (
+    analysisType === "Forecast" &&
+    window.TSForecastAnalysis
+  ) {
+    result =
+      await window.TSForecastAnalysis
+        .runForecastAnalysisOnTrack(trackId, params);
+
+  } else if (
+    analysisType === "Auto Analysis" &&
+    window.TSForecastAnalysis
+  ) {
+    result =
+      await window.TSForecastAnalysis
+        .runForecastAnalysisOnTrack(trackId, {
+          ...params,
+          model:
+            params.forecastModel ||
+            params.model ||
+            "auto-arima"
+        });
+
   } else {
-    result = runPlaceholderAnalysis(trackId, analysisType, params);
+    result =
+      runPlaceholderAnalysis(
+        trackId,
+        analysisType,
+        params
+      );
   }
 
   if (result?.status === "error") {
@@ -704,6 +733,23 @@ function applyAnalysis(analysisType) {
       stackId,
       createAnalysisSummary(analysisType, result)
     );
+  }
+
+  if (
+    analysisType === "Forecast" &&
+    result?.status === "done" &&
+    result.result &&
+    window.TSForecastChart
+  ) {
+    window.TSForecastChart.renderForecastChart(
+      "mainForecastChart",
+      result.result
+    );
+
+    const overlay = document.getElementById("regionEmptyOverlay");
+    if (overlay) {
+      overlay.classList.add("hidden");
+    }
   }
 
   closePopup();
