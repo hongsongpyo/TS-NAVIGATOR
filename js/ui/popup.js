@@ -651,6 +651,10 @@ function applyAnalysis(analysisType) {
 
   if (analysisType === "Structure" && window.TSStructureAnalysis) {
     result = window.TSStructureAnalysis.runStructureAnalysisOnTrack(trackId, params);
+  } else if (analysisType === "Forecast" && window.TSForecastAnalysis) {
+    result = window.TSForecastAnalysis.runForecastAnalysisOnTrack(trackId, params);
+  } else if (analysisType === "Auto Analysis" && window.TSForecastAnalysis) {
+    result = window.TSForecastAnalysis.runForecastAnalysisOnTrack(trackId, params);
   } else {
     result = runPlaceholderAnalysis(trackId, analysisType, params);
   }
@@ -665,7 +669,13 @@ function applyAnalysis(analysisType) {
     );
   }
 
-  refreshWorkspace(`APPLY_${analysisType}`);
+  closePopup();
+
+  if (window.TSLayout) {
+    window.TSLayout.dispatchStateChange(`APPLY_${analysisType}`);
+  } else {
+    refreshWorkspace(`APPLY_${analysisType}`);
+  }
 }
 
 /* =========================================================

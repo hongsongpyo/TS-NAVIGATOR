@@ -143,68 +143,107 @@ function runForecastAnalysis(rows, options = {}) {
 ========================================================= */
 
 function runForecastAnalysisOnTrack(trackId, params = {}) {
-  if (!window.TSStore) return null;
-
   const sourceTrack = window.TSStore.getTrack(trackId);
-  if (!sourceTrack) return null;
 
-  const result = runForecastAnalysis(sourceTrack.data || [], {
-    ...params,
-    datetimeColumn:
-      params.datetimeColumn ||
-      sourceTrack.metadata?.datetimeColumn ||
-      window.TSState?.dataset?.datetimeColumn,
-    targetColumn:
-      params.targetColumn ||
-      sourceTrack.metadata?.targetColumn ||
-      window.TSState?.dataset?.targetColumn,
-    frequency:
-      params.frequency ||
-      sourceTrack.metadata?.frequency ||
-      window.TSState?.dataset?.frequency
-  });
-
-  if (result.status === "error") {
-    markLatestForecastStack(trackId, result);
-    return result;
+  if (!sourceTrack) {
+    return {
+      status: "error",
+      message: "기준 Track을 찾을 수 없습니다."
+    };
   }
 
-  const newTrack = window.TSStore.addTrack({
-    name: createForecastTrackName(sourceTrack, result),
+  const rows = sourceTrack.data || [];
+  const datetimeColumn =
+    sourceTrack.metadata?.datetimeColumn ||
+    window.TSState.dataset.datetimeColumn;
+
+  const targetColumn =
+    sourceTrack.metadata?.targetColumn ||
+    window.TSState.dataset.targetColumn;
+
+  if (!datetimeColumn || !targetColumn || rows.length === 0) {
+    return {
+      status: "error",
+      message: "예측에 필요한 날짜/값 컬럼이 없습니다."
+    };
+  }
+
+  const horizon = Number(params.horizon || 12);
+
+  const values = rows
+    .map(row => Number(row[targetColumn]))
+    .filter(value => Number.isFinite(value));
+
+  if (values.length < 3) {
+    return {
+      status: "error",
+      message: "예측을 수행하기 위한 데이터가 부족합니다."
+    };
+  }
+
+  const lastValue = values[values.length - 1];
+  const recentValues = values.slice(-Math.min(6, values.length));
+  const recentMean =
+    recentValues.reduce((sum, value) => sum + value, 0) / recentValues.length;
+
+  const trend =
+    (values[values.length - 1] - values[Math.max(0, values.length - 6)]) /
+    Math.min(6, values.length - 1);
+
+  const lastDate = new Date(rows[rows.length - 1][datetimeColumn]);
+
+  const forecastRows = [];
+
+  for (let i = 1; i <= horizon; i += 1) {
+    const nextDate = new Date(lastDate);
+    nextDate.setMonth(nextDate.getMonth() + i);
+
+    forecastRows.push({
+      [datetimeColumn]: nextDate.toISOString().slice(0, 10),
+      [targetColumn]: recentMean + trend * i,
+      __forecast: true
+    });
+  }
+
+  const forecastTrack = window.TSStore.addTrack({
+    name: `Forecast · ${sourceTrack.name}`,
     type: "Forecast Data",
     sourceTrackId: sourceTrack.id,
     regionId: sourceTrack.regionId,
-    data: sourceTrack.data,
+    data: forecastRows,
     metadata: {
       ...sourceTrack.metadata,
-      forecast: result.forecast,
-      forecastDates: result.forecastDates,
-      model: result.model,
-      horizon: result.horizon,
-      lastAnalysis: "Forecast",
-      lastParams: params
+      forecastHorizon: horizon,
+      forecastModel: params.model || "auto"
     }
   });
 
-  window.TSStore.addAnalysisToTrack(newTrack.id, "Forecast", params);
-
-  window.TSStore.commitTrackResult(newTrack.id, {
-    data: sourceTrack.data,
-    metadata: {
-      ...newTrack.metadata,
-      forecast: result.forecast,
-      forecastDates: result.forecastDates,
-      predictionLower: result.lower,
-      predictionUpper: result.upper
-    },
-    result
+  window.TSStore.commitTrackResult(forecastTrack.id, {
+    data: forecastRows,
+    metadata: forecastTrack.metadata,
+    result: {
+      type: "Forecast",
+      status: "done",
+      params,
+      messages: [
+        `${horizon}개 시점에 대한 예측 Track이 생성되었습니다.`
+      ]
+    }
   });
 
-  markLatestForecastStack(newTrack.id, result);
-  window.TSStore.selectTrack?.(newTrack.id);
-
-  return result;
+  return {
+    status: "done",
+    type: "Forecast",
+    forecastTrackId: forecastTrack.id,
+    messages: [
+      `${horizon}개 시점에 대한 예측 Track이 생성되었습니다.`
+    ]
+  };
 }
+
+window.TSForecastAnalysis = {
+  runForecastAnalysisOnTrack
+};
 
 /* =========================================================
    3. Forecast Values
