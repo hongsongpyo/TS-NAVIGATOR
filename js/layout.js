@@ -261,9 +261,9 @@ function applyLayoutRatio() {
   if (!mainLayout) return;
 
   if (TSLayoutState.inspectorCollapsed) {
-    mainLayout.style.gridTemplateColumns = "36px 220px 1fr";
+    mainLayout.style.gridTemplateColumns = "44px 10% 1fr";
 
-    if (collapseRail) collapseRail.textContent = "▶";
+    if (collapseRail) collapseRail.textContent = ">";
     if (inspectorPanel) inspectorPanel.classList.add("collapsed");
 
     return;
@@ -271,7 +271,7 @@ function applyLayoutRatio() {
 
   mainLayout.style.gridTemplateColumns = "18% 10% 72%";
 
-  if (collapseRail) collapseRail.textContent = "◀";
+  if (collapseRail) collapseRail.textContent = "<";
   if (inspectorPanel) inspectorPanel.classList.remove("collapsed");
 }
 
